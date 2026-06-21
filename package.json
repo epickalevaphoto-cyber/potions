@@ -15,6 +15,9 @@
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
+  "engines": {
+    "node": ">=16.0.0"
+  },
   "keywords": ["game", "potions", "duel", "socket.io", "harry-potter"],
   "author": "",
   "license": "MIT"
