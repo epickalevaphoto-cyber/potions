@@ -51,13 +51,6 @@
         <div id="roomInfo" style="margin-top: 20px; padding: 16px; background: #f5efe6; border-radius: 8px; border: 2px solid #d4c5b5;">
             <div id="playerList"></div>
         </div>
-        
-        <div style="margin-top: 20px; padding: 12px; background: #f5efe6; border-radius: 8px; border: 1px solid #d4c5b5;">
-            <p style="font-size: 0.9rem; color: #5a3d2b; margin: 0;">
-                📜 <strong>Инвентарь:</strong> Алюминий, Медь, Чугун, Серебро (котлы) • Колбы, Пробирки, Ступка и пестик, Нож, Весы, Мерные колбы, Цилиндры, Бюретки, Пипетки
-            </p>
-        </div>
-    </div>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
@@ -69,10 +62,10 @@
         
         document.getElementById('roomIdDisplay').textContent = roomId;
         
-        let selectedRole = null;
+        let socket = null;
         let playerName = '';
         let playerHouse = 'Гриффиндор';
-        let socket = null;
+        let isJoining = false;
         
         // Подключаем Socket.IO
         try {
@@ -86,6 +79,9 @@
             const errorEl = document.getElementById('error');
             errorEl.style.display = 'block';
             errorEl.textContent = '❌ ' + message;
+            setTimeout(() => {
+                errorEl.style.display = 'none';
+            }, 5000);
         }
         
         document.getElementById('playerName').addEventListener('input', function() {
@@ -101,7 +97,7 @@
                 showError('Введите имя');
                 return;
             }
-            selectedRole = 'player';
+            if (isJoining) return;
             joinRoom('player');
         });
         
@@ -110,11 +106,13 @@
                 showError('Введите имя');
                 return;
             }
-            selectedRole = 'spectator';
+            if (isJoining) return;
             joinRoom('spectator');
         });
         
         function joinRoom(role) {
+            isJoining = true;
+            
             const data = {
                 roomId: roomId,
                 playerName: playerName,
@@ -122,39 +120,69 @@
                 role: role
             };
             
-            // Сначала присоединяемся через Socket.IO
-            if (socket) {
-                socket.emit('joinRoom', data);
-                
-                socket.on('joined', (response) => {
-                    console.log('Присоединение подтверждено:', response);
-                    window.location.href = `/game.html?room=${roomId}`;
-                });
-                
-                socket.on('error', (message) => {
-                    showError(message);
-                });
-            } else {
-                // Fallback: используем HTTP запрос
-                fetch('/join-room', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                })
+            console.log('📤 Отправка запроса на присоединение:', data);
+            
+            // Сначала проверяем, существует ли комната
+            fetch(`/check-room/${roomId}`)
                 .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        window.location.href = `/game.html?room=${roomId}`;
+                .then(checkData => {
+                    if (!checkData.exists) {
+                        showError('Комната не найдена. Возможно, она была удалена.');
+                        isJoining = false;
+                        return;
+                    }
+                    
+                    // Затем присоединяемся через Socket.IO
+                    if (socket) {
+                        socket.emit('joinRoom', data);
+                        
+                        // Обработчик успешного присоединения
+                        socket.once('joined', (response) => {
+                            console.log('✅ Присоединение подтверждено:', response);
+                            window.location.href = `/game.html?room=${roomId}`;
+                        });
+                        
+                        // Обработчик ошибки
+                        socket.once('error', (message) => {
+                            showError(message);
+                            isJoining = false;
+                        });
+                        
+                        // Таймаут на случай, если ответ не пришёл
+                        setTimeout(() => {
+                            if (isJoining) {
+                                showError('Превышено время ожидания ответа от сервера');
+                                isJoining = false;
+                            }
+                        }, 10000);
                     } else {
-                        showError(data.message || 'Не удалось присоединиться');
+                        // Fallback: HTTP запрос
+                        fetch('/join-room', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(data)
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                window.location.href = `/game.html?room=${roomId}`;
+                            } else {
+                                showError(data.message || 'Не удалось присоединиться');
+                                isJoining = false;
+                            }
+                        })
+                        .catch(() => {
+                            showError('Ошибка соединения с сервером');
+                            isJoining = false;
+                        });
                     }
                 })
                 .catch(() => {
-                    showError('Ошибка соединения с сервером');
+                    showError('Ошибка проверки комнаты');
+                    isJoining = false;
                 });
-            }
         }
         
         // Получение информации о комнате
