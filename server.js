@@ -6,17 +6,20 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+const io = socketIo(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
 
 // Middleware
 app.use(express.static('public'));
 app.use(express.json());
 
-// ========== ДАННЫЕ О ЗЕЛЬЯХ (встроенные в сервер) ==========
+// ========== ДАННЫЕ О ЗЕЛЬЯХ ==========
 
-// Все доступные ингредиенты
 const ALL_INGREDIENTS = [
-    // Растительные
     { id: 'aconite', name: 'Аконит', category: 'plant', emoji: '🌿' },
     { id: 'asphodel_root', name: 'Корень асфоделя', category: 'plant', emoji: '🌱' },
     { id: 'star_anise', name: 'Бадьян', category: 'plant', emoji: '⭐' },
@@ -26,8 +29,6 @@ const ALL_INGREDIENTS = [
     { id: 'seaweed', name: 'Водоросли', category: 'plant', emoji: '🌊' },
     { id: 'rowan_bark', name: 'Кора волшебной рябины', category: 'plant', emoji: '🌳' },
     { id: 'wormwood', name: 'Настойка горькой полыни', category: 'plant', emoji: '🍃' },
-    
-    // Животные
     { id: 'acromantula_venom', name: 'Яд акромантула', category: 'animal', emoji: '🕷️' },
     { id: 'bundle_grass', name: 'Перья болтрушайки', category: 'animal', emoji: '🪶' },
     { id: 'toad_wart', name: 'Бородавки большой пурпурной жабы', category: 'animal', emoji: '🐸' },
@@ -35,14 +36,10 @@ const ALL_INGREDIENTS = [
     { id: 'bundimun_slime', name: 'Слизь бундимуна', category: 'animal', emoji: '🟢' },
     { id: 'griffon_claw', name: 'Когти грифона', category: 'animal', emoji: '🦅' },
     { id: 'caterpillar', name: 'Сушёная волосатая гусеница', category: 'animal', emoji: '🐛' },
-    
-    // Минеральные
     { id: 'bezoar', name: 'Безоаровый камень', category: 'mineral', emoji: '💎' },
     { id: 'moonstone', name: 'Лунный камень', category: 'mineral', emoji: '🌙' },
     { id: 'opal', name: 'Опал', category: 'mineral', emoji: '✨' },
     { id: 'ruby', name: 'Рубин', category: 'mineral', emoji: '🔴' },
-    
-    // Другие
     { id: 'lethe_water', name: 'Речная вода Леты', category: 'other', emoji: '🌊' },
     { id: 'moon_dew', name: 'Лунная роса', category: 'other', emoji: '🌙' },
     { id: 'honey_water', name: 'Медовая вода', category: 'other', emoji: '🍯' },
@@ -50,7 +47,6 @@ const ALL_INGREDIENTS = [
     { id: 'unicorn_blood', name: 'Кровь единорога', category: 'other', emoji: '🦄' }
 ];
 
-// Рецепты зелий
 const POTION_RECIPES = [
     {
         name: 'Мазь для мётел',
@@ -78,13 +74,6 @@ const POTION_RECIPES = [
     }
 ];
 
-// Инвентарь
-const INVENTORY = {
-    cauldrons: ['Алюминий', 'Медь', 'Чугун', 'Серебро'],
-    tools: ['Колбы', 'Пробирки', 'Ступка и пестик', 'Нож', 'Весы', 'Мерные колбы', 'Цилиндры', 'Бюретки', 'Пипетки']
-};
-
-// Функции для работы с данными
 function getRandomPotion() {
     return POTION_RECIPES[Math.floor(Math.random() * POTION_RECIPES.length)];
 }
@@ -135,34 +124,11 @@ function createRandomEvent() {
     return events[Math.floor(Math.random() * events.length)];
 }
 
-// ========== КОНЕЦ ДАННЫХ ==========
+// ========== ХРАНИЛИЩЕ ==========
 
-// Хранилище в памяти
 const rooms = {};
 const players = {};
 
-// Генерация случайного рецепта для раундов 1-3
-function generateRecipe() {
-    const recipe = getRandomPotion();
-    return {
-        name: recipe.name,
-        ingredients: recipe.ingredients,
-        actions: recipe.actions,
-        cauldron: recipe.cauldron
-    };
-}
-
-// Генерация порядка действий для раундов 4-6
-function generateActionOrder() {
-    return getRandomActions();
-}
-
-// Генерация случайного события для раунда 7
-function generateRandomEvent() {
-    return createRandomEvent();
-}
-
-// Создание новой комнаты
 function createRoom() {
     const roomId = uuidv4().slice(0, 8);
     rooms[roomId] = {
@@ -174,34 +140,22 @@ function createRoom() {
         roundType: null,
         roundData: null,
         roundStartTime: null,
-        recipe: generateRecipe(),
-        actionOrder: generateActionOrder(),
-        randomEvent: generateRandomEvent(),
+        recipe: {
+            name: getRandomPotion().name,
+            ingredients: getRandomPotion().ingredients,
+            actions: getRandomPotion().actions,
+            cauldron: getRandomPotion().cauldron
+        },
+        actionOrder: getRandomActions(),
+        randomEvent: createRandomEvent(),
         startTime: null,
         endTime: null,
         playerStates: {}
     };
+    console.log(`✅ Комната создана: ${roomId}`);
     return roomId;
 }
 
-// Сброс состояния игрока в комнате
-function resetPlayerState(roomId, playerId) {
-    if (rooms[roomId] && rooms[roomId].playerStates[playerId]) {
-        rooms[roomId].playerStates[playerId] = {
-            errors: 0,
-            currentStep: 0,
-            completed: false,
-            roundErrors: 0,
-            actionIndex: 0,
-            answered: false,
-            eventAnswered: false,
-            selectedIngredients: [],
-            actionProgress: 0
-        };
-    }
-}
-
-// Инициализация состояния игрока
 function initPlayerState(roomId, playerId) {
     if (!rooms[roomId]) return;
     if (!rooms[roomId].playerStates[playerId]) {
@@ -219,51 +173,46 @@ function initPlayerState(roomId, playerId) {
     }
 }
 
-// Запуск игры
+// ========== ЛОГИКА ИГРЫ ==========
+
 function startGame(roomId) {
     const room = rooms[roomId];
     if (!room || room.gameState !== 'waiting') return;
     
+    console.log(`🎮 Игра началась в комнате ${roomId}`);
     room.gameState = 'playing';
     room.currentRound = 0;
     room.startTime = Date.now();
     
-    // Инициализируем состояния игроков
     room.players.forEach(p => {
         initPlayerState(roomId, p.id);
-        room.playerStates[p.id].ready = false;
     });
     
     startRound(roomId);
 }
 
-// Запуск раунда
 function startRound(roomId) {
     const room = rooms[roomId];
     if (!room || room.gameState !== 'playing') return;
     
     room.currentRound++;
     
-    // Проверка на завершение игры
     if (room.currentRound > 8) {
         endGame(roomId);
         return;
     }
     
-    // Определяем тип раунда
     let roundType;
     let roundData = null;
     
     if (room.currentRound <= 3) {
         roundType = 'ingredients';
-        // Получаем ингредиенты для выбора
         const allIngredients = getRandomIngredients(6);
         roundData = {
             ingredients: allIngredients,
             correct: room.recipe.ingredients,
             potionName: room.recipe.name
         };
-        // Сбрасываем шаги игроков
         room.players.forEach(p => {
             if (room.playerStates[p.id]) {
                 room.playerStates[p.id].currentStep = 0;
@@ -276,8 +225,7 @@ function startRound(roomId) {
         roundType = 'actions';
         roundData = {
             actions: ['Нагреть', 'Добавить ингредиент', 'Перемешать', 'Остудить', 'Настоять', 'Процедить'],
-            correct: room.actionOrder,
-            currentAction: 0
+            correct: room.actionOrder
         };
         room.players.forEach(p => {
             if (room.playerStates[p.id]) {
@@ -298,7 +246,6 @@ function startRound(roomId) {
             }
         });
     } else if (room.currentRound === 8) {
-        roundType = 'final';
         endGame(roomId);
         return;
     }
@@ -307,7 +254,8 @@ function startRound(roomId) {
     room.roundData = roundData;
     room.roundStartTime = Date.now();
     
-    // Отправляем данные о раунде всем в комнате
+    console.log(`📖 Раунд ${room.currentRound} (${roundType}) в комнате ${roomId}`);
+    
     io.to(roomId).emit('roundStart', {
         roundNumber: room.currentRound,
         roundType: roundType,
@@ -315,23 +263,19 @@ function startRound(roomId) {
         timeLimit: 45
     });
     
-    // Запускаем таймер на 45 секунд
     setTimeout(() => {
         endRound(roomId);
     }, 45000);
 }
 
-// Завершение раунда
 function endRound(roomId) {
     const room = rooms[roomId];
     if (!room || room.gameState !== 'playing') return;
     
-    // Проверяем, ответили ли все игроки
     const allAnswered = room.players.every(p => 
         room.playerStates[p.id]?.answered === true
     );
     
-    // Если не все ответили, начисляем штраф
     if (!allAnswered) {
         room.players.forEach(p => {
             if (!room.playerStates[p.id]?.answered) {
@@ -341,7 +285,6 @@ function endRound(roomId) {
         });
     }
     
-    // Отправляем результаты раунда
     const results = room.players.map(p => ({
         playerId: p.id,
         playerName: p.name,
@@ -356,13 +299,11 @@ function endRound(roomId) {
         correctAnswer: room.roundData?.correct || []
     });
     
-    // Запускаем следующий раунд через 3 секунды
     setTimeout(() => {
         startRound(roomId);
     }, 3000);
 }
 
-// Завершение игры
 function endGame(roomId) {
     const room = rooms[roomId];
     if (!room) return;
@@ -370,7 +311,6 @@ function endGame(roomId) {
     room.gameState = 'finished';
     room.endTime = Date.now();
     
-    // Определяем победителя
     let winner = null;
     let minErrors = Infinity;
     let minTime = Infinity;
@@ -387,15 +327,15 @@ function endGame(roomId) {
         }
     });
     
-    // Отправляем результаты
     const results = room.players.map(p => ({
         playerId: p.id,
         playerName: p.name,
         house: p.house,
         errors: room.playerStates[p.id]?.errors || 0,
-        totalTime: room.endTime - room.startTime,
-        selectedIngredients: room.playerStates[p.id]?.selectedIngredients || []
+        totalTime: room.endTime - room.startTime
     }));
+    
+    console.log(`🏆 Игра завершена в комнате ${roomId}, победитель: ${winner?.name || 'Ничья'}`);
     
     io.to(roomId).emit('gameEnd', {
         winner: winner ? {
@@ -409,21 +349,22 @@ function endGame(roomId) {
     });
 }
 
-// Socket.IO
+// ========== SOCKET.IO ==========
+
 io.on('connection', (socket) => {
-    console.log('Новое подключение:', socket.id);
+    console.log(`🔌 Новое подключение: ${socket.id}`);
     
-    // Создание комнаты
-    socket.on('createRoom', (data) => {
+    socket.on('createRoom', () => {
         const roomId = createRoom();
         rooms[roomId].hostId = socket.id;
         socket.join(roomId);
         socket.emit('roomCreated', { roomId });
+        console.log(`📦 Комната ${roomId} создана пользователем ${socket.id}`);
     });
     
-    // Присоединение к комнате
     socket.on('joinRoom', (data) => {
         const { roomId, playerName, house, role } = data;
+        console.log(`🚪 Попытка входа в комнату ${roomId}: ${playerName} (${role})`);
         
         if (!rooms[roomId]) {
             socket.emit('error', 'Комната не найдена');
@@ -432,7 +373,13 @@ io.on('connection', (socket) => {
         
         const room = rooms[roomId];
         
-        // Проверка на количество игроков
+        // Проверяем, не находится ли уже игрок с таким именем в комнате
+        const existingPlayer = room.players.find(p => p.name === playerName);
+        if (existingPlayer) {
+            socket.emit('error', 'Игрок с таким именем уже есть в комнате');
+            return;
+        }
+        
         if (role === 'player' && room.players.length >= 2) {
             socket.emit('error', 'Места для игроков заняты');
             return;
@@ -443,7 +390,6 @@ io.on('connection', (socket) => {
             return;
         }
         
-        // Сохраняем игрока
         const player = {
             id: socket.id,
             name: playerName,
@@ -465,7 +411,6 @@ io.on('connection', (socket) => {
         
         socket.join(roomId);
         
-        // Отправляем подтверждение
         socket.emit('joined', {
             roomId: roomId,
             player: player,
@@ -478,9 +423,11 @@ io.on('connection', (socket) => {
             spectators: room.spectators
         });
         
+        console.log(`✅ ${playerName} присоединился к комнате ${roomId} (${room.players.length}/2 игроков)`);
+        
         // Если оба игрока готовы, запускаем игру
         if (role === 'player' && room.players.length === 2) {
-            // Ждем 2 секунды перед стартом
+            console.log(`🎯 Оба игрока в комнате ${roomId}, запускаем игру через 2 секунды`);
             setTimeout(() => {
                 if (room.gameState === 'waiting') {
                     startGame(roomId);
@@ -489,7 +436,6 @@ io.on('connection', (socket) => {
         }
     });
     
-    // Отправка действия в игре
     socket.on('gameAction', (data) => {
         const { roomId, action, step } = data;
         const room = rooms[roomId];
@@ -499,130 +445,100 @@ io.on('connection', (socket) => {
         const playerState = room.playerStates[socket.id];
         if (!playerState || playerState.answered) return;
         
-        // Обработка разных типов раундов
         if (room.roundType === 'ingredients') {
-            handleIngredientAction(roomId, socket.id, action);
+            const correctRecipe = room.recipe.ingredients;
+            const currentStep = playerState.currentStep;
+            
+            if (currentStep >= correctRecipe.length) {
+                playerState.answered = true;
+                return;
+            }
+            
+            if (playerState.selectedIngredients.includes(action)) {
+                return;
+            }
+            
+            if (action === correctRecipe[currentStep]) {
+                playerState.currentStep++;
+                playerState.selectedIngredients.push(action);
+                if (playerState.currentStep >= correctRecipe.length) {
+                    playerState.answered = true;
+                }
+            } else {
+                playerState.errors++;
+                playerState.roundErrors++;
+                playerState.selectedIngredients.push(action + ' (неверно)');
+            }
+            
+            io.to(roomId).emit('playerUpdate', {
+                playerId: socket.id,
+                progress: playerState.currentStep / correctRecipe.length,
+                errors: playerState.errors,
+                completed: playerState.answered,
+                selectedIngredients: playerState.selectedIngredients
+            });
         } else if (room.roundType === 'actions') {
-            handleActionAction(roomId, socket.id, action);
+            const correctOrder = room.actionOrder;
+            const currentIndex = playerState.actionIndex;
+            
+            if (currentIndex >= correctOrder.length) {
+                playerState.answered = true;
+                return;
+            }
+            
+            if (action === correctOrder[currentIndex]) {
+                playerState.actionIndex++;
+                playerState.actionProgress = playerState.actionIndex / correctOrder.length;
+                if (playerState.actionIndex >= correctOrder.length) {
+                    playerState.answered = true;
+                }
+            } else {
+                playerState.errors++;
+                playerState.roundErrors++;
+            }
+            
+            io.to(roomId).emit('playerUpdate', {
+                playerId: socket.id,
+                progress: playerState.actionProgress || 0,
+                errors: playerState.errors,
+                completed: playerState.answered,
+                actionIndex: playerState.actionIndex
+            });
         } else if (room.roundType === 'event') {
-            handleEventAction(roomId, socket.id, action);
+            const eventData = room.roundData;
+            
+            if (playerState.eventAnswered) return;
+            
+            if (action === eventData.correct) {
+                playerState.errors = Math.max(0, playerState.errors - 1);
+                playerState.roundErrors = Math.max(0, playerState.roundErrors - 1);
+            } else {
+                playerState.errors++;
+                playerState.roundErrors++;
+            }
+            
+            playerState.eventAnswered = true;
+            playerState.answered = true;
+            
+            io.to(roomId).emit('playerUpdate', {
+                playerId: socket.id,
+                progress: 1,
+                errors: playerState.errors,
+                completed: true,
+                eventAnswered: true
+            });
         }
     });
     
-    // Обработка выбора ингредиента
-    function handleIngredientAction(roomId, playerId, ingredient) {
-        const room = rooms[roomId];
-        const playerState = room.playerStates[playerId];
-        const correctRecipe = room.recipe.ingredients;
-        const currentStep = playerState.currentStep;
-        
-        if (currentStep >= correctRecipe.length) {
-            playerState.answered = true;
-            return;
-        }
-        
-        // Проверяем, не выбран ли уже этот ингредиент
-        if (playerState.selectedIngredients.includes(ingredient)) {
-            return;
-        }
-        
-        // Проверяем правильность
-        if (ingredient === correctRecipe[currentStep]) {
-            playerState.currentStep++;
-            playerState.selectedIngredients.push(ingredient);
-            if (playerState.currentStep >= correctRecipe.length) {
-                playerState.answered = true;
-            }
-        } else {
-            playerState.errors++;
-            playerState.roundErrors++;
-            // Добавляем неправильный ингредиент в список выбранных
-            playerState.selectedIngredients.push(ingredient + ' (неверно)');
-        }
-        
-        // Отправляем обновление
-        io.to(roomId).emit('playerUpdate', {
-            playerId: playerId,
-            progress: playerState.currentStep / correctRecipe.length,
-            errors: playerState.errors,
-            completed: playerState.answered,
-            selectedIngredients: playerState.selectedIngredients
-        });
-    }
-    
-    // Обработка действия
-    function handleActionAction(roomId, playerId, action) {
-        const room = rooms[roomId];
-        const playerState = room.playerStates[playerId];
-        const correctOrder = room.actionOrder;
-        const currentIndex = playerState.actionIndex;
-        
-        if (currentIndex >= correctOrder.length) {
-            playerState.answered = true;
-            return;
-        }
-        
-        // Проверяем правильность действия
-        if (action === correctOrder[currentIndex]) {
-            playerState.actionIndex++;
-            playerState.actionProgress = playerState.actionIndex / correctOrder.length;
-            if (playerState.actionIndex >= correctOrder.length) {
-                playerState.answered = true;
-            }
-        } else {
-            playerState.errors++;
-            playerState.roundErrors++;
-        }
-        
-        // Отправляем обновление
-        io.to(roomId).emit('playerUpdate', {
-            playerId: playerId,
-            progress: playerState.actionProgress || 0,
-            errors: playerState.errors,
-            completed: playerState.answered,
-            actionIndex: playerState.actionIndex
-        });
-    }
-    
-    // Обработка события
-    function handleEventAction(roomId, playerId, optionIndex) {
-        const room = rooms[roomId];
-        const playerState = room.playerStates[playerId];
-        const eventData = room.roundData;
-        
-        if (playerState.eventAnswered) return;
-        
-        if (optionIndex === eventData.correct) {
-            // Бонус - уменьшаем ошибки
-            playerState.errors = Math.max(0, playerState.errors - 1);
-            playerState.roundErrors = Math.max(0, playerState.roundErrors - 1);
-        } else {
-            playerState.errors++;
-            playerState.roundErrors++;
-        }
-        
-        playerState.eventAnswered = true;
-        playerState.answered = true;
-        
-        // Отправляем обновление
-        io.to(roomId).emit('playerUpdate', {
-            playerId: playerId,
-            progress: 1,
-            errors: playerState.errors,
-            completed: true,
-            eventAnswered: true
-        });
-    }
-    
-    // Отключение
     socket.on('disconnect', () => {
+        console.log(`🔌 Отключение: ${socket.id}`);
         const playerData = players[socket.id];
         if (playerData) {
             const roomId = playerData.roomId;
             const room = rooms[roomId];
             
             if (room) {
-                // Удаляем игрока
+                const playerName = playerData.player.name;
                 room.players = room.players.filter(p => p.id !== socket.id);
                 room.spectators = room.spectators.filter(p => p.id !== socket.id);
                 delete room.playerStates[socket.id];
@@ -632,7 +548,6 @@ io.on('connection', (socket) => {
                     spectators: room.spectators
                 });
                 
-                // Если игра идет, завершаем её
                 if (room.gameState === 'playing') {
                     room.gameState = 'finished';
                     io.to(roomId).emit('gameEnd', {
@@ -647,9 +562,11 @@ io.on('connection', (socket) => {
                     });
                 }
                 
-                // Если комната пуста, удаляем
+                console.log(`👋 ${playerName} покинул комнату ${roomId}`);
+                
                 if (room.players.length === 0 && room.spectators.length === 0) {
                     delete rooms[roomId];
+                    console.log(`🗑️ Комната ${roomId} удалена`);
                 }
             }
             
@@ -658,7 +575,8 @@ io.on('connection', (socket) => {
     });
 });
 
-// API маршруты
+// ========== API МАРШРУТЫ ==========
+
 app.post('/create-room', (req, res) => {
     const roomId = createRoom();
     res.json({ roomId });
@@ -666,11 +584,14 @@ app.post('/create-room', (req, res) => {
 
 app.get('/check-room/:roomId', (req, res) => {
     const roomId = req.params.roomId;
-    res.json({ exists: !!rooms[roomId] });
+    const exists = !!rooms[roomId];
+    console.log(`🔍 Проверка комнаты ${roomId}: ${exists}`);
+    res.json({ exists });
 });
 
 app.post('/join-room', (req, res) => {
     const { roomId, playerName, house, role } = req.body;
+    console.log(`📝 API вход в комнату ${roomId}: ${playerName}`);
     
     if (!rooms[roomId]) {
         return res.json({ success: false, message: 'Комната не найдена' });
@@ -708,7 +629,6 @@ app.get('/room-info/:roomId', (req, res) => {
             errors: state?.errors || 0,
             progress: state?.currentStep !== undefined ? state.currentStep / 3 : 0,
             completed: state?.answered || false,
-            ready: state?.ready || false,
             selectedIngredients: state?.selectedIngredients || []
         };
     });
@@ -728,21 +648,33 @@ app.get('/player-state/:roomId', (req, res) => {
     const roomId = req.params.roomId;
     const room = rooms[roomId];
     
-    if (!room || room.players.length === 0) {
+    if (!room) {
         return res.json({ exists: false });
     }
     
-    const player = room.players[0];
-    res.json({
-        exists: true,
-        role: 'player',
-        name: player.name,
-        house: player.house,
-        errors: room.playerStates[player.id]?.errors || 0
-    });
+    // Ищем игрока по socket.id из заголовков или используем первого
+    // В реальном приложении нужно использовать сессии
+    if (room.players.length > 0) {
+        const player = room.players[0];
+        res.json({
+            exists: true,
+            role: 'player',
+            name: player.name,
+            house: player.house,
+            errors: room.playerStates[player.id]?.errors || 0
+        });
+    } else {
+        res.json({
+            exists: true,
+            role: 'spectator',
+            name: '',
+            house: ''
+        });
+    }
 });
 
-// Запуск сервера
+// ========== ЗАПУСК СЕРВЕРА ==========
+
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`🧪 Сервер Дуэли зельеваров запущен на порту ${PORT}`);
