@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Выбор роли - Дуэль зельеваров</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Дуэль зельеваров</h1>
+        <h2 style="text-align: center; margin-bottom: 10px;">Выбор роли</h2>
+        <p style="text-align: center; color: #5a3d2b; margin-bottom: 20px;">
+            Комната: <strong id="roomIdDisplay"></strong>
+        </p>
+        
+        <div id="error" style="display: none; margin-bottom: 20px; padding: 16px; background: #f5e0e0; border-radius: 8px; border: 2px solid #8b5a5a; color: #5a2a2a;">
+        </div>
+        
+        <div class="form-group">
+            <label for="playerName">Ваше имя</label>
+            <input type="text" id="playerName" placeholder="Введите имя" maxlength="20">
+        </div>
+        
+        <div class="form-group">
+            <label for="playerHouse">Факультет</label>
+            <select id="playerHouse">
+                <option value="Гриффиндор">🦁 Гриффиндор</option>
+                <option value="Слизерин">🐍 Слизерин</option>
+                <option value="Когтевран">🦅 Когтевран</option>
+                <option value="Пуффендуй">🦡 Пуффендуй</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Выберите роль</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <button id="playerRoleBtn" class="btn" style="font-size: 1.1rem; padding: 16px;">
+                    ⚔️ Игрок
+                </button>
+                <button id="spectatorRoleBtn" class="btn btn-secondary" style="font-size: 1.1rem; padding: 16px;">
+                    👁️ Наблюдатель
+                </button>
+            </div>
+            <p style="font-size: 0.8rem; color: #8b6a47; margin-top: 8px; text-align: center;">
+                Игроков: <span id="playerCount">0</span> / 2 • Наблюдателей: <span id="spectatorCount">0</span> / 3
+            </p>
+        </div>
+        
+        <div id="roomInfo" style="margin-top: 20px; padding: 16px; background: #f5efe6; border-radius: 8px; border: 2px solid #d4c5b5;">
+            <div id="playerList"></div>
+        </div>
+        
+        <div style="margin-top: 20px; padding: 12px; background: #f5efe6; border-radius: 8px; border: 1px solid #d4c5b5;">
+            <p style="font-size: 0.9rem; color: #5a3d2b; margin: 0;">
+                📜 <strong>Инвентарь:</strong> Алюминий, Медь, Чугун, Серебро (котлы) • Колбы, Пробирки, Ступка и пестик, Нож, Весы, Мерные колбы, Цилиндры, Бюретки, Пипетки
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('room');
+        
+        if (!roomId) {
+            window.location.href = '/';
+        }
+        
+        document.getElementById('roomIdDisplay').textContent = roomId;
+        
+        let selectedRole = null;
+        let playerName = '';
+        let playerHouse = 'Гриффиндор';
+        
+        function showError(message) {
+            const errorEl = document.getElementById('error');
+            errorEl.style.display = 'block';
+            errorEl.textContent = '❌ ' + message;
+        }
+        
+        document.getElementById('playerName').addEventListener('input', function() {
+            playerName = this.value.trim();
+        });
+        
+        document.getElementById('playerHouse').addEventListener('change', function() {
+            playerHouse = this.value;
+        });
+        
+        document.getElementById('playerRoleBtn').addEventListener('click', function() {
+            if (!playerName) {
+                showError('Введите имя');
+                return;
+            }
+            selectedRole = 'player';
+            joinRoom('player');
+        });
+        
+        document.getElementById('spectatorRoleBtn').addEventListener('click', function() {
+            if (!playerName) {
+                showError('Введите имя');
+                return;
+            }
+            selectedRole = 'spectator';
+            joinRoom('spectator');
+        });
+        
+        function joinRoom(role) {
+            const data = {
+                roomId: roomId,
+                playerName: playerName,
+                house: playerHouse,
+                role: role
+            };
+            
+            fetch('/join-room', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = `/game.html?room=${roomId}`;
+                } else {
+                    showError(data.message || 'Не удалось присоединиться');
+                }
+            })
+            .catch(() => {
+                showError('Ошибка соединения с сервером');
+            });
+        }
+        
+        // Получение информации о комнате
+        function updateRoomInfo() {
+            fetch(`/room-info/${roomId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.exists) {
+                        document.getElementById('playerCount').textContent = data.players?.length || 0;
+                        document.getElementById('spectatorCount').textContent = data.spectators || 0;
+                        
+                        const playerList = document.getElementById('playerList');
+                        const players = data.players || [];
+                        
+                        if (players.length > 0) {
+                            let html = '<p style="margin-bottom: 8px;"><strong>Игроки:</strong></p>';
+                            players.forEach(p => {
+                                const houseEmoji = p.house === 'Гриффиндор' ? '🦁' : 
+                                                   p.house === 'Слизерин' ? '🐍' : 
+                                                   p.house === 'Когтевран' ? '🦅' : '🦡';
+                                html += `<p style="margin: 4px 0; font-size: 0.9rem;">${houseEmoji} ${p.name} (${p.house})</p>`;
+                            });
+                            playerList.innerHTML = html;
+                        } else {
+                            playerList.innerHTML = '<p style="color: #8b6a47;">Ожидание игроков...</p>';
+                        }
+                    }
+                })
+                .catch(() => {});
+        }
+        
+        updateRoomInfo();
+        setInterval(updateRoomInfo, 3000);
+    </script>
+</body>
+</html>
