@@ -11,117 +11,72 @@
     <div id="screen-main" class="screen active">
         <div class="corner-decor top-left"></div>
         <div class="corner-decor top-right"></div>
-
         <h1 class="magic-title">Дуэль Зельеваров</h1>
-        
         <div class="vintage-divider">
             <svg width="200" height="20" viewBox="0 0 200 20">
                 <path d="M10,10 L80,10 Q100,0 100,10 Q100,20 100,10 L190,10" fill="none" stroke="#b58263" stroke-width="1.5"/>
                 <circle cx="100" cy="10" r="4" fill="#7f5539"/>
-                <circle cx="85" cy="10" r="2" fill="#b58263"/>
-                <circle cx="115" cy="10" r="2" fill="#b58263"/>
             </svg>
         </div>
-
-        <p>Добро пожаловать в алхимическую лабораторию академии</p>
-
         <div style="width: 100%; max-width: 340px; z-index: 2;">
             <button onclick="navigate('create')">Создать комнату</button>
             <button onclick="navigate('join')" style="background: #a98467; border-color: #8b5e3c;">Присоединиться</button>
-            <button class="orange-btn" onclick="alert('Учебник Зельеварения:\n\n1. Мазь для мётел (Аконит, Белладонна)\n2. Зелье для проявки фотографий (Сок пиявки, Мурлокомль, Бундимун)\n3. Болтушка для молчунов (Валериана, Аконит, Бадьян)')">Книга рецептов</button>
         </div>
     </div>
 
     <div id="screen-profile" class="screen">
         <div class="corner-decor top-left"></div>
         <div class="corner-decor top-right"></div>
-
-        <h2 id="profile-title">Настройки комнаты</h2>
-        
+        <h2 id="profile-title">Настройки</h2>
         <div class="vintage-divider">
             <svg width="200" height="20" viewBox="0 0 200 20">
                 <path d="M10,10 L80,10 Q100,0 100,10 Q100,20 100,10 L190,10" fill="none" stroke="#b58263" stroke-width="1.5"/>
-                <circle cx="100" cy="10" r="4" fill="#7f5539"/>
             </svg>
         </div>
-
         <div style="width: 100%; max-width: 350px; z-index: 2;">
-            <input type="text" id="username" placeholder="Ваше магическое имя..." autocomplete="off">
-            
+            <input type="text" id="username" placeholder="Имя мага..." autocomplete="off">
             <div id="room-code-input-group" style="display: none;">
-                <input type="text" id="room-code" placeholder="Код комнаты (4 цифры)...">
+                <input type="text" id="room-code" placeholder="Код (4 цифры)...">
             </div>
-
-            <label style="color: #795548; font-style: italic; display: block; text-align: center; margin-bottom: 10px;">Выберите ваш факультет:</label>
             <div class="faculty-selector">
-                <button class="fac-btn" onclick="selectFaculty('Гриффиндор')"><span>🦁</span>Грифф</button>
-                <button class="fac-btn" onclick="selectFaculty('Слизерин')"><span>🐍</span>Слиз</button>
-                <button class="fac-btn" onclick="selectFaculty('Когтевран')"><span>🦅</span>Когт</button>
-                <button class="fac-btn" onclick="selectFaculty('Пуффендуй')"><span>🦡</span>Пуфф</button>
+                <button class="fac-btn" onclick="selectFaculty('Гриффиндор')">🦁 Грифф</button>
+                <button class="fac-btn" onclick="selectFaculty('Слизерин')">🐍 Слиз</button>
+                <button class="fac-btn" onclick="selectFaculty('Когтевран')">🦅 Когт</button>
+                <button class="fac-btn" onclick="selectFaculty('Пуффендуй')">🦡 Пуфф</button>
             </div>
-
             <button onclick="submitProfile()">Далее</button>
-            <button style="background: #8b5e3c; border-color: #6c472b;" onclick="goBack()">Назад</button>
+            <button style="background: #8b5e3c;" onclick="goBack()">Назад</button>
         </div>
     </div>
 
     <div id="screen-role" class="screen">
         <div class="corner-decor top-left"></div>
         <div class="corner-decor top-right"></div>
-
         <h2>Зал ожидания</h2>
-        
-        <div class="vintage-divider">
-            <svg width="200" height="20" viewBox="0 0 200 20">
-                <path d="M10,10 L80,10 Q100,0 100,10 Q100,20 100,10 L190,10" fill="none" stroke="#b58263" stroke-width="1.5"/>
-                <circle cx="100" cy="10" r="4" fill="#7f5539"/>
-            </svg>
-        </div>
-
-        <p style="margin-bottom: 15px;">Передайте этот код сопернику для подключения:</p>
-        <h1 id="display-room-code" style="font-family: 'Playfair Display', serif; color: #b58263; font-size: 3rem; margin: 0 0 25px 0; letter-spacing: 3px;">----</h1>
-
+        <h1 id="display-room-code" style="font-family: serif; color: #b58263; font-size: 3rem; text-align:center; letter-spacing: 3px;">----</h1>
         <div style="width: 100%; max-width: 340px; z-index: 2;">
-            <button id="player-role-btn" onclick="chooseRole('player')">Занять место за столом</button>
-            <p style="font-size: 0.85rem; color: #8d6e63; margin-top: 20px; text-align: center;">Дуэль начнется автоматически, как только оба мага подтвердят готовность.</p>
+            <button id="player-role-btn" onclick="chooseRole()">Занять дуэльный стол</button>
         </div>
     </div>
 
     <div id="screen-duel" class="screen">
         <div class="corner-decor top-left"></div>
         <div class="corner-decor top-right"></div>
-
         <h2 id="duel-status-title">Класс Зельеварения</h2>
-        
-        <div class="vintage-divider">
-            <svg width="200" height="20" viewBox="0 0 200 20">
-                <path d="M10,10 L80,10 Q100,0 100,10 Q100,20 100,10 L190,10" fill="none" stroke="#b58263" stroke-width="1.5"/>
-                <circle cx="100" cy="10" r="4" fill="#7f5539"/>
-            </svg>
-        </div>
-
         <div class="duel-layout">
             <div class="workspace">
-                <h3 id="my-potion-title" style="font-family: 'Playfair Display', serif; color: #5c4033; margin-top: 0;">Свиток Рецепта</h3>
-                <div class="recipe-box" id="step-instruction">
-                    Разворачиваем свиток с инструкциями...
-                </div>
+                <h3 id="my-potion-title" style="color:#5c4033; margin:0 0 10px 0;">Рецепт</h3>
+                <div class="recipe-box" id="step-instruction">Загрузка свитка...</div>
                 <div class="interactive-zone" id="mechanic-zone"></div>
             </div>
-
             <div class="sidebar">
                 <div class="status-block">
                     <h4 id="my-stat-name">Вы</h4>
-                    <div class="progress-bar-container">
-                        <div class="progress-fill" id="my-progress-bar"></div>
-                    </div>
+                    <div class="progress-bar-container"><div class="progress-fill" id="my-progress-bar"></div></div>
                 </div>
-
                 <div class="status-block">
                     <h4 id="enemy-stat-name">Соперник</h4>
-                    <div class="progress-bar-container">
-                        <div class="progress-fill" id="enemy-progress-bar" style="background: #a98467;"></div>
-                    </div>
+                    <div class="progress-bar-container"><div class="progress-fill" id="enemy-progress-bar" style="background:#a98467;"></div></div>
                 </div>
             </div>
         </div>
