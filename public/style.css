@@ -66,6 +66,40 @@ p {
     margin-bottom: 30px;
 }
 
+/* Разделитель под заголовками */
+.vintage-divider {
+    margin-bottom: 25px;
+    opacity: 0.8;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+/* Декоративные винтажные уголки для карточек */
+.corner-decor {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.corner-decor.top-left {
+    top: 20px;
+    left: 20px;
+    border-top: 2px solid #7f5539;
+    border-left: 2px solid #7f5539;
+    border-radius: 4px 0 0 0;
+}
+
+.corner-decor.top-right {
+    top: 20px;
+    right: 20px;
+    border-top: 2px solid #7f5539;
+    border-right: 2px solid #7f5539;
+    border-radius: 0 4px 0 0;
+}
+
 /* Кнопки в стиле крафтовых ярлыков */
 button {
     background: #b58263; /* Теплый терракотово-коричневый */
@@ -130,22 +164,27 @@ input[type="text"]:focus {
     width: 100%;
 }
 
-.fac-btn {
+.faculty-selector .fac-btn {
+    font-size: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    justify-content: center;
     background: #fffdf9;
     border: 1px solid #e6ccb2;
     padding: 15px 5px;
     border-radius: 14px;
     color: #7f5539;
-    font-size: 0.9rem;
     box-shadow: none;
 }
 
-.fac-btn:hover {
+.faculty-selector .fac-btn:hover {
     background: #f5ebe0;
     border-color: #b58263;
 }
 
-.fac-btn.selected {
+.faculty-selector .fac-btn.selected {
     background: #e6ccb2;
     border: 1.5px solid #7f5539;
     color: #4e342e;
@@ -162,6 +201,8 @@ input[type="text"]:focus {
 }
 
 .workspace {
+    position: relative;
+    overflow: hidden;
     background: #fffdf9;
     border: 1px solid #e6ccb2;
     padding: 30px;
@@ -170,6 +211,17 @@ input[type="text"]:focus {
     flex-direction: column;
     align-items: center;
     box-shadow: inset 0 0 20px rgba(230, 204, 178, 0.1);
+}
+
+.workspace::after {
+    content: "🧪";
+    position: absolute;
+    bottom: -20px;
+    right: -10px;
+    font-size: 7rem;
+    opacity: 0.04;
+    transform: rotate(-15deg);
+    pointer-events: none;
 }
 
 .recipe-box {
@@ -213,7 +265,9 @@ input[type="text"]:focus {
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: transform 0.1s;
 }
+.cauldron-wrapper:active { transform: scale(0.97); }
 
 /* Волшебная жидкость */
 .cauldron-liquid {
@@ -222,7 +276,7 @@ input[type="text"]:focus {
     border-radius: 50%;
     background: #ccd5ae; /* Пастельный травяной оттенок */
     box-shadow: inset 0 0 15px rgba(0,0,0,0.15);
-    transition: background 0.8s ease;
+    transition: background 0.8s ease, box-shadow 0.8s ease;
 }
 
 /* Ползунок тепла */
