@@ -1,24 +1,13 @@
 {
-  "name": "duel-of-potions",
+  "name": "potions-duel",
   "version": "1.0.0",
-  "description": "Дуэль зельеваров - соревнование по зельеварению",
+  "description": "Дуэль зельеваров",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "socket.io": "^4.6.1",
-    "uuid": "^9.0.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.1"
-  },
-  "engines": {
-    "node": ">=16.0.0"
-  },
-  "keywords": ["game", "potions", "duel", "socket.io", "harry-potter"],
-  "author": "",
-  "license": "MIT"
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  }
 }
