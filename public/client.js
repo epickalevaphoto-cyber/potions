@@ -1,78 +1,368 @@
-const socket = io();
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,400&family=Lora:ital,wght@0,400;0,600;1,400&display=swap');
 
-let currentAction = 'create'; // 'create' или 'join'
-let selectedFaculty = '';
-let myRoomId = '';
-
-function navigate(action) {
-    currentAction = action;
-    document.getElementById('screen-main').classList.remove('active');
-    document.getElementById('screen-profile').classList.add('active');
-    
-    if (action === 'create') {
-        document.getElementById('profile-title').innerText = 'Создание комнаты';
-        document.getElementById('room-code-input-group').style.display = 'none';
-    } else {
-        document.getElementById('profile-title').innerText = 'Присоединение к комнате';
-        document.getElementById('room-code-input-group').style.display = 'block';
-    }
+/* Основные настройки пространства */
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #ede0d4; /* Мягкий базовый фон вокруг карточки */
+    background-image: radial-gradient(rgba(189, 159, 137, 0.15) 1px, transparent 0);
+    background-size: 24px 24px;
+    color: #4e342e; /* Глубокий кофейный вместо черного */
+    font-family: 'Lora', Georgia, serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
 }
 
-function goBack() {
-    document.getElementById('screen-profile').classList.remove('active');
-    document.getElementById('screen-main').classList.add('active');
+/* Экраны в виде винтажных листов пергамента */
+.screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    width: 95%;
+    max-width: 800px;
+    padding: 40px;
+    background: #f7f1e5; /* Цвет дорогой матовой бумаги */
+    border: 1px solid #d6c5b3;
+    border-radius: 24px; /* Закругления */
+    box-shadow: 
+        0 10px 30px rgba(141, 110, 99, 0.15),
+        inset 0 0 40px rgba(213, 191, 172, 0.2);
+    box-sizing: border-box;
+    position: relative;
 }
 
-function selectFaculty(fac) {
-    selectedFaculty = fac;
-    document.querySelectorAll('.fac-btn').forEach(btn => btn.classList.remove('selected'));
-    event.target.classList.add('selected');
+/* Изящная двойная декоративная рамка внутри экрана */
+.screen::before {
+    content: "";
+    position: absolute;
+    top: 12px; left: 12px; right: 12px; bottom: 12px;
+    border: 1px dashed #cdc0b0;
+    border-radius: 16px;
+    pointer-events: none;
 }
 
-function submitProfile() {
-    const name = document.getElementById('username').value.trim();
-    if (!name || !selectedFaculty) return alert('Заполните имя и выберите факультет!');
-
-    if (currentAction === 'create') {
-        socket.emit('createRoom', { name, faculty: selectedFaculty });
-    } else {
-        const code = document.getElementById('room-code').value.trim();
-        socket.emit('checkRoom', code);
-    }
+.screen.active {
+    display: flex;
 }
 
-// При создании комнаты сервером получаем код и идем на Экран 3
-socket.on('roomCreated', (roomId) => {
-    myRoomId = roomId;
-    showRoleScreen();
-});
-
-// Ответ сервера на проверку существования комнаты
-socket.on('roomExists', (exists) => {
-    if (exists) {
-        myRoomId = document.getElementById('room-code').value.trim();
-        showRoleScreen();
-    } else {
-        alert('Комната не найдена!');
-    }
-});
-
-function showRoleScreen() {
-    document.getElementById('screen-profile').classList.remove('active');
-    document.getElementById('screen-role').classList.add('active');
-    document.getElementById('display-room-code').innerText = myRoomId;
+/* Элегантные заголовки */
+.magic-title, h2 {
+    font-family: 'Playfair Display', 'Times New Roman', serif;
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: #5c4033;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+    text-align: center;
 }
 
-function chooseRole(role) {
-    const name = document.getElementById('username').value.trim();
-    socket.emit('joinRole', { roomId: myRoomId, name, faculty: selectedFaculty, role });
-    
-    // Переход на экран дуэли
-    document.getElementById('screen-role').classList.remove('active');
-    document.getElementById('screen-duel').classList.add('active');
+h2 { font-size: 1.8rem; margin-top: 10px; }
+
+p {
+    color: #795548;
+    font-style: italic;
+    margin-bottom: 30px;
 }
 
-socket.on('roomUpdate', (roomData) => {
-    console.log('Данные комнаты обновлены:', roomData);
-    // Тут в будущем будет обновляться список игроков и запускаться игра
-});
+/* Разделитель под заголовками */
+.vintage-divider {
+    margin-bottom: 25px;
+    opacity: 0.8;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+/* Декоративные винтажные уголки для карточек */
+.corner-decor {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.corner-decor.top-left {
+    top: 20px;
+    left: 20px;
+    border-top: 2px solid #7f5539;
+    border-left: 2px solid #7f5539;
+    border-radius: 4px 0 0 0;
+}
+
+.corner-decor.top-right {
+    top: 20px;
+    right: 20px;
+    border-top: 2px solid #7f5539;
+    border-right: 2px solid #7f5539;
+    border-radius: 0 4px 0 0;
+}
+
+/* Кнопки в стиле крафтовых ярлыков */
+button {
+    background: #b58263; /* Теплый терракотово-коричневый */
+    color: #fff9f2;
+    border: 1px solid #9c6644;
+    padding: 14px 28px;
+    font-family: 'Lora', serif;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 30px; /* Круглые аккуратные кнопки */
+    cursor: pointer;
+    margin: 10px 0;
+    transition: all 0.2s ease-in-out;
+    width: 100%;
+    box-shadow: 0 4px 10px rgba(156, 102, 68, 0.15);
+}
+
+button:hover {
+    background: #7f5539;
+    box-shadow: 0 4px 12px rgba(127, 85, 57, 0.3);
+    transform: translateY(-1px);
+}
+
+/* Мягкая акцентная кнопка (Карамельный / Оливковый тон) */
+.orange-btn {
+    background: #a98467;
+    border-color: #8b5e3c;
+}
+.orange-btn:hover {
+    background: #606c38; /* Оливковый акцент при наведении */
+    border-color: #283618;
+}
+
+/* Текстовые поля (Инпуты) */
+input[type="text"] {
+    width: 100%;
+    padding: 14px 20px;
+    margin-bottom: 25px;
+    background: #fffdf9;
+    border: 1px solid #d6c5b3;
+    color: #4e342e;
+    font-family: inherit;
+    border-radius: 30px;
+    font-size: 1rem;
+    box-sizing: border-box;
+    box-shadow: inset 0 2px 4px rgba(141, 110, 99, 0.05);
+    transition: all 0.3s;
+}
+
+input[type="text"]:focus {
+    border-color: #b58263;
+    outline: none;
+    background: #ffffff;
+}
+
+/* Переключатели Факультетов в виде аккуратных карточек */
+.faculty-selector {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin: 20px 0 30px 0;
+    width: 100%;
+}
+
+.faculty-selector .fac-btn {
+    font-size: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    justify-content: center;
+    background: #fffdf9;
+    border: 1px solid #e6ccb2;
+    padding: 15px 5px;
+    border-radius: 14px;
+    color: #7f5539;
+    box-shadow: none;
+}
+
+.faculty-selector .fac-btn:hover {
+    background: #f5ebe0;
+    border-color: #b58263;
+}
+
+.faculty-selector .fac-btn.selected {
+    background: #e6ccb2;
+    border: 1.5px solid #7f5539;
+    color: #4e342e;
+    font-weight: bold;
+}
+
+/* --- ИГРОВОЙ ИНТЕРФЕЙС (ЛАБОРАТОРИЯ) --- */
+.duel-layout {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 30px;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.workspace {
+    position: relative;
+    overflow: hidden;
+    background: #fffdf9;
+    border: 1px solid #e6ccb2;
+    padding: 30px;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: inset 0 0 20px rgba(230, 204, 178, 0.1);
+}
+
+.workspace::after {
+    content: "🧪";
+    position: absolute;
+    bottom: -20px;
+    right: -10px;
+    font-size: 7rem;
+    opacity: 0.04;
+    transform: rotate(-15deg);
+    pointer-events: none;
+}
+
+.recipe-box {
+    font-family: 'Lora', serif;
+    font-style: italic;
+    font-size: 1.05rem;
+    line-height: 1.6;
+    background: #fcf8f2;
+    padding: 20px;
+    border-left: 3px solid #b58263;
+    border-radius: 4px;
+    margin-bottom: 25px;
+    width: 100%;
+    box-sizing: border-box;
+    color: #5c4033;
+}
+
+/* Зона интерактива */
+.interactive-zone {
+    width: 100%;
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 10px 0;
+}
+
+/* Медный / Чугунный котел */
+.cauldron-wrapper {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    background: #8b5e3c; /* Теплый медный цвет */
+    border-radius: 50% 50% 45% 45%;
+    border: 6px solid #6c472b;
+    box-shadow: 
+        0 12px 20px rgba(108, 71, 43, 0.2), 
+        inset 0 4px 10px rgba(0,0,0,0.3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s;
+}
+.cauldron-wrapper:active { transform: scale(0.97); }
+
+/* Волшебная жидкость */
+.cauldron-liquid {
+    width: 80%;
+    height: 80%;
+    border-radius: 50%;
+    background: #ccd5ae; /* Пастельный травяной оттенок */
+    box-shadow: inset 0 0 15px rgba(0,0,0,0.15);
+    transition: background 0.8s ease, box-shadow 0.8s ease;
+}
+
+/* Ползунок тепла */
+.slider-container {
+    width: 90%;
+    margin-top: 25px;
+    text-align: left;
+}
+
+.slider-container label {
+    font-size: 0.9rem;
+    color: #795548;
+}
+
+.fire-slider {
+    width: 100%;
+    margin-top: 12px;
+    background: #e6ccb2;
+    accent-color: #b58263; 
+    height: 4px;
+    border-radius: 2px;
+    outline: none;
+}
+
+/* Доска для нарезки / Ступка */
+.action-pad {
+    width: 190px;
+    height: 190px;
+    background: #fffdf9;
+    border: 1px dashed #b58263;
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 600;
+    color: #7f5539;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+    transition: transform 0.2s, background 0.2s;
+}
+.action-pad:hover {
+    background: #fbf6f0;
+    transform: scale(1.02);
+}
+
+/* Сайдбар прогресса */
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.status-block {
+    background: #fffdf9;
+    border: 1px solid #e6ccb2;
+    padding: 20px;
+    border-radius: 16px;
+    text-align: left;
+}
+
+.status-block h4 {
+    margin: 0 0 8px 0;
+    color: #5c4033;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+}
+
+.progress-bar-container {
+    width: 100%;
+    background: #f5ebe0;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #b58263; 
+    width: 0%;
+    transition: width 0.4s ease;
+}
+
+.gold-text { 
+    color: #b58263; 
+    font-weight: bold; 
+}
