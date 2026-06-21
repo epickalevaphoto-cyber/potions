@@ -23,12 +23,12 @@
             </svg>
         </div>
 
-        <p>Добро пожаловать в алхимическую лабораторию</p>
+        <p>Добро пожаловать в алхимическую лабораторию академии</p>
 
         <div style="width: 100%; max-width: 340px; z-index: 2;">
             <button onclick="navigate('create')">Создать комнату</button>
             <button onclick="navigate('join')" style="background: #a98467; border-color: #8b5e3c;">Присоединиться</button>
-            <button class="orange-btn" onclick="alert('Книга рецептов:\n1. Мазь для мётел\n2. Зелье для проявки фотографий\n3. Болтушка для молчунов')">Книга заклинаний</button>
+            <button class="orange-btn" onclick="alert('Учебник Зельеварения:\n\n1. Мазь для мётел (Аконит, Белладонна)\n2. Зелье для проявки фотографий (Сок пиявки, Мурлокомль, Бундимун)\n3. Болтушка для молчунов (Валериана, Аконит, Бадьян)')">Книга рецептов</button>
         </div>
     </div>
 
@@ -46,18 +46,18 @@
         </div>
 
         <div style="width: 100%; max-width: 350px; z-index: 2;">
-            <input type="text" id="username" placeholder="Ваше имя..." autocomplete="off">
+            <input type="text" id="username" placeholder="Ваше магическое имя..." autocomplete="off">
             
             <div id="room-code-input-group" style="display: none;">
-                <input type="text" id="room-code" placeholder="Код комнаты (4 знака)...">
+                <input type="text" id="room-code" placeholder="Код комнаты (4 цифры)...">
             </div>
 
-            <label style="color: #795548; font-style: italic; display: block; text-align: center; margin-bottom: 10px;">Выберите факультет:</label>
+            <label style="color: #795548; font-style: italic; display: block; text-align: center; margin-bottom: 10px;">Выберите ваш факультет:</label>
             <div class="faculty-selector">
                 <button class="fac-btn" onclick="selectFaculty('Гриффиндор')"><span>🦁</span>Грифф</button>
                 <button class="fac-btn" onclick="selectFaculty('Слизерин')"><span>🐍</span>Слиз</button>
                 <button class="fac-btn" onclick="selectFaculty('Когтевран')"><span>🦅</span>Когт</button>
-                <button class="fac-btn" onclick="selectFaculty('Push-button')"><span>🦡</span>Пуфф</button>
+                <button class="fac-btn" onclick="selectFaculty('Пуффендуй')"><span>🦡</span>Пуфф</button>
             </div>
 
             <button onclick="submitProfile()">Далее</button>
@@ -78,12 +78,12 @@
             </svg>
         </div>
 
-        <p style="margin-bottom: 15px;">Код вашей секретной комнаты:</p>
+        <p style="margin-bottom: 15px;">Передайте этот код сопернику для подключения:</p>
         <h1 id="display-room-code" style="font-family: 'Playfair Display', serif; color: #b58263; font-size: 3rem; margin: 0 0 25px 0; letter-spacing: 3px;">----</h1>
 
         <div style="width: 100%; max-width: 340px; z-index: 2;">
             <button id="player-role-btn" onclick="chooseRole('player')">Занять место за столом</button>
-            <p style="font-size: 0.85rem; color: #8d6e63; margin-top: 20px;">Игра начнется автоматически, как только дуэлянты займут свои места.</p>
+            <p style="font-size: 0.85rem; color: #8d6e63; margin-top: 20px; text-align: center;">Дуэль начнется автоматически, как только оба мага подтвердят готовность.</p>
         </div>
     </div>
 
@@ -91,7 +91,7 @@
         <div class="corner-decor top-left"></div>
         <div class="corner-decor top-right"></div>
 
-        <h2 id="duel-status-title">Магическая Лаборатория</h2>
+        <h2 id="duel-status-title">Класс Зельеварения</h2>
         
         <div class="vintage-divider">
             <svg width="200" height="20" viewBox="0 0 200 20">
@@ -102,9 +102,9 @@
 
         <div class="duel-layout">
             <div class="workspace">
-                <h3 id="my-potion-title" style="font-family: 'Playfair Display', serif; color: #5c4033; margin-top: 0;">Рецепт зелья</h3>
+                <h3 id="my-potion-title" style="font-family: 'Playfair Display', serif; color: #5c4033; margin-top: 0;">Свиток Рецепта</h3>
                 <div class="recipe-box" id="step-instruction">
-                    Загрузка инструкций...
+                    Разворачиваем свиток с инструкциями...
                 </div>
                 <div class="interactive-zone" id="mechanic-zone"></div>
             </div>
