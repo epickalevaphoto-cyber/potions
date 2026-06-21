@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Дуэль зельеваров</title>
     <link rel="stylesheet" href="style.css">
+    <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
     <div class="container">
@@ -65,26 +66,53 @@
     </div>
 
     <script>
+        let socket = null;
+        
+        // Подключаем Socket.IO
+        try {
+            socket = io();
+            console.log('Socket.IO подключен на главной');
+        } catch (e) {
+            console.error('Ошибка подключения Socket.IO:', e);
+        }
+        
         function createRoom() {
             document.getElementById('loading').style.display = 'block';
             document.getElementById('error').style.display = 'none';
             
-            fetch('/create-room', {
-                method: 'POST'
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('loading').style.display = 'none';
-                if (data.roomId) {
-                    window.location.href = `/choose-role.html?room=${data.roomId}`;
-                } else {
-                    showError('Не удалось создать комнату');
-                }
-            })
-            .catch(() => {
-                document.getElementById('loading').style.display = 'none';
-                showError('Ошибка соединения с сервером');
-            });
+            if (socket) {
+                socket.emit('createRoom', {});
+                
+                socket.on('roomCreated', (data) => {
+                    document.getElementById('loading').style.display = 'none';
+                    if (data.roomId) {
+                        window.location.href = `/choose-role.html?room=${data.roomId}`;
+                    }
+                });
+                
+                socket.on('error', (message) => {
+                    document.getElementById('loading').style.display = 'none';
+                    showError(message);
+                });
+            } else {
+                // Fallback: используем HTTP запрос
+                fetch('/create-room', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('loading').style.display = 'none';
+                    if (data.roomId) {
+                        window.location.href = `/choose-role.html?room=${data.roomId}`;
+                    } else {
+                        showError('Не удалось создать комнату');
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('loading').style.display = 'none';
+                    showError('Ошибка соединения с сервером');
+                });
+            }
         }
         
         function joinRoom() {
