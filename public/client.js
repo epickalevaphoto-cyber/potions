@@ -3,15 +3,23 @@ const socket = io();
 let currentAction = 'create';
 let selectedFaculty = '';
 let myRoomId = '';
-let myRole = '';
 let myPotion = null;
 let currentStepIdx = 0;
 
-// Игровые счетчики манипуляций
-let grindCount = 0;
-let cutCount = 0;
-let stirRotationCount = 0;
-window.heatTimeout = null;
+// Игровые переменные для симулятора
+let balanceProgress = 0;
+let pointerPos = 50;
+let pointerVelocity = 0;
+let isSpacePressed = false;
+let balanceLoopId = null;
+
+let currentLiquidLevel = 0;
+let pourInterval = null;
+
+let slicePoints = [];
+let currentStirAngle = 0;
+let totalStirRotations = 0;
+let lastStirAngle = null;
 
 function navigate(action) {
     currentAction = action;
@@ -39,7 +47,7 @@ function selectFaculty(fac) {
 
 function submitProfile() {
     const name = document.getElementById('username').value.trim();
-    if (!name || !selectedFaculty) return alert('Заполните имя и выберите факультет!');
+    if (!name || !selectedFaculty) return alert('Заполните данные!');
     if (currentAction === 'create') {
         socket.emit('createRoom', { name, faculty: selectedFaculty });
     } else {
@@ -53,7 +61,7 @@ socket.on('roomExists', (exists) => {
     if (exists) {
         myRoomId = document.getElementById('room-code').value.trim();
         showRoleScreen();
-    } else { alert('Комната не найдена или уже занята!'); }
+    } else { alert('Комната не существует!'); }
 });
 
 function showRoleScreen() {
@@ -62,21 +70,18 @@ function showRoleScreen() {
     document.getElementById('display-room-code').innerText = myRoomId;
 }
 
-function chooseRole(role) {
-    myRole = role;
+function chooseRole() {
     const name = document.getElementById('username').value.trim();
-    socket.emit('joinRole', { roomId: myRoomId, name, faculty: selectedFaculty, role });
+    socket.emit('joinRole', { roomId: myRoomId, name, faculty: selectedFaculty });
     document.getElementById('player-role-btn').disabled = true;
-    document.getElementById('player-role-btn').innerText = 'Ожидание соперника...';
+    document.getElementById('player-role-btn').innerText = 'Готовность записана...';
 }
 
 socket.on('gameStart', ({ players }) => {
     document.getElementById('screen-role').classList.remove('active');
     document.getElementById('screen-duel').classList.add('active');
-    
     const me = players.find(p => p.id === socket.id);
     const enemy = players.find(p => p.id !== socket.id);
-
     if (me) document.getElementById('my-stat-name').innerText = `${me.name} (${me.faculty})`;
     if (enemy) document.getElementById('enemy-stat-name').innerText = `${enemy.name} (${enemy.faculty})`;
 });
@@ -84,185 +89,238 @@ socket.on('gameStart', ({ players }) => {
 socket.on('yourPotionData', (potionData) => {
     myPotion = potionData;
     currentStepIdx = 0;
-    document.getElementById('my-potion-title').innerText = `Приготовление: ${myPotion.name}`;
+    document.getElementById('my-potion-title').innerText = myPotion.name;
     loadStep();
 });
 
-// Генерация интерфейсов под типы механик
+// Слушатели клавиатуры для удержания огня пробелом
+window.addEventListener('keydown', (e) => { if (e.code === 'Space') { isSpacePressed = true; e.preventDefault(); } });
+window.addEventListener('keyup', (e) => { if (e.code === 'Space') isSpacePressed = false; });
+
 function loadStep() {
+    if (balanceLoopId) { cancelAnimationFrame(balanceLoopId); balanceLoopId = null; }
     if (!myPotion || currentStepIdx >= myPotion.steps.length) return;
-    
+
     const step = myPotion.steps[currentStepIdx];
     document.getElementById('step-instruction').innerText = step.text;
     const zone = document.getElementById('mechanic-zone');
-    zone.innerHTML = ''; 
+    zone.innerHTML = '';
 
-    // Механика 1: Обычный клик (Вливание жидкостей из колбы)
-    if (step.type === 'click') {
+    // МЕХАНИКА 1: Выбор инвентаря (Геншин-стиль)
+    if (step.type === 'inventory') {
         zone.innerHTML = `
-            <div style="cursor:pointer; text-align:center;" onclick="completeCurrentStep()">
-                <svg width="120" height="150" viewBox="0 0 100 120">
-                    <path d="M40,20 L60,20 L60,35 L75,50 A25,25 0 0,1 75,90 L25,90 A25,25 0 0,1 25,50 L40,35 Z" fill="#b58263" stroke="#5c4033" stroke-width="3"/>
-                    <rect x="35" y="10" width="30" height="10" rx="3" fill="#8b5e3c" stroke="#5c4033" stroke-width="2"/>
-                    <circle cx="50" cy="70" r="15" fill="#e6ccb2" opacity="0.6"/>
-                    <path d="M30,75 Q50,60 70,75 L70,85 L30,85 Z" fill="#a98467"/>
-                </svg>
-                <p class="gold-text" style="margin-top:10px;">Нажмите на склянку, чтобы добавить ингредиент</p>
+            <div class="inventory-grid">
+                <div class="inv-item" onclick="selectCauldron('Алюминий')"><svg viewBox="0 0 60 60"><circle cx="30" cy="35" r="20" fill="#b0bec5"/><rect x="15" y="10" width="30" height="5" fill="#78909c"/></svg><span>Алюминий</span></div>
+                <div class="inv-item" onclick="selectCauldron('Медь')"><svg viewBox="0 0 60 60"><circle cx="30" cy="35" r="20" fill="#d84315"/><rect x="15" y="10" width="30" height="5" fill="#bf360c"/></svg><span>Медь</span></div>
+                <div class="inv-item" onclick="selectCauldron('Чугун')"><svg viewBox="0 0 60 60"><circle cx="30" cy="35" r="20" fill="#37474f"/><rect x="15" y="10" width="30" height="5" fill="#212121"/></svg><span>Чугун</span></div>
+                <div class="inv-item" onclick="selectCauldron('Серебро')"><svg viewBox="0 0 60 60"><circle cx="30" cy="35" r="20" fill="#e0e0e0"/><rect x="15" y="10" width="30" height="5" fill="#bdbdbd"/></svg><span>Серебро</span></div>
             </div>`;
-    } 
-    
-    // Механика 2: Нарезка (Рубящие движения ножом)
-    else if (step.type === 'cut') {
-        cutCount = 0;
+    }
+
+    // МЕХАНИКА 2: Нарезка ингредиентов по координатам клика (Геншин-стиль)
+    else if (step.type === 'slice') {
+        slicePoints = [];
         zone.innerHTML = `
-            <div style="text-align:center; position:relative; width:200px; height:200px; cursor:pointer;" onclick="triggerCut(${step.target})">
-                <svg width="200" height="200" viewBox="0 0 200 200">
-                    <ellipse cx="100" cy="130" rx="80" ry="30" fill="#ddbca3" stroke="#8b5e3c" stroke-width="3"/>
-                    <path d="M50,120 Q100,105 150,125 Q130,140 60,135 Z" fill="#7f5539" id="root-ingredient"/>
-                    <g id="svg-knife" style="transform-origin: 140px 110px; transition: transform 0.1s;">
-                        <path d="M60,100 L140,110 L135,118 L70,115 Z" fill="#d6c5b3" stroke="#5c4033" stroke-width="2"/>
-                        <rect x="140" y="105" width="35" height="10" rx="3" fill="#5c4033"/>
-                    </g>
+            <div class="slice-board" onclick="handleSlice(event, ${step.target})">
+                <svg width="100%" height="100%" viewBox="0 0 300 180" id="board-svg">
+                    <rect x="10" y="10" width="280" height="160" rx="10" fill="#d7ccc8" stroke="#8d6e63" stroke-width="4"/>
+                    <rect x="60" y="80" width="180" height="30" rx="5" fill="#a1887f" id="ing-body"/>
                 </svg>
-                <div style="font-weight:bold; margin-top:-20px;" id="cut-counter">Нарезано: 0 / ${step.target}</div>
+                <div id="slice-counter" style="position:absolute; bottom:10px; font-weight:bold;">Нарезов: 0 / ${step.target}</div>
             </div>`;
-    } 
-    
-    // Механика 3: Растирание в ступке (Вращение пестика)
+    }
+
+    // МЕХАНИКА 3: Измельчение в ступке (Зажатие и трение)
     else if (step.type === 'grind') {
+        let isGrinding = false;
         grindCount = 0;
         zone.innerHTML = `
-            <div style="text-align:center; width:200px; height:200px; cursor:pointer;" onclick="triggerGrind(${step.target})">
-                <svg width="180" height="160" viewBox="0 0 100 90">
-                    <path d="M10,30 L90,30 C90,70 10,70 10,30 Z" fill="#fffdf9" stroke="#b58263" stroke-width="3"/>
-                    <ellipse cx="50" cy="30" rx="40" ry="10" fill="#e6ccb2" stroke="#b58263" stroke-width="2"/>
-                    <ellipse cx="50" cy="40" rx="25" ry="8" fill="#7f5539" opacity="0.3" id="grind-pile"/>
-                    <g id="svg-pestle" style="transform-origin: 50px 30px; transition: transform 0.1s;">
-                        <path d="M44,10 L56,10 L52,40 L48,40 Z" fill="#8b5e3c" stroke="#5c4033" stroke-width="2"/>
-                        <circle cx="50" cy="42" r="6" fill="#5c4033"/>
-                    </g>
+            <div class="mortar-zone" onmousedown="isGrinding=true" onmouseup="isGrinding=false" onmouseleave="isGrinding=false" onmousemove="handleGrind(event, isGrinding, ${step.target})">
+                <svg width="160" height="160" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="45" fill="#cfd8dc" stroke="#90a4ae" stroke-width="4"/>
+                    <circle cx="50" cy="50" r="30" fill="#b0bec5"/>
+                    <circle cx="50" cy="50" r="10" fill="#546e7a" id="pestle-node"/>
                 </svg>
-                <div style="font-weight:bold; margin-top:10px;" id="grind-counter">Перетёрто: 0%</div>
+                <div style="font-weight:bold; margin-top:10px;" id="grind-progress">Растирание: 0%</div>
             </div>`;
     }
-    
-    // Механика 4: Нагрев (Интерактивный ползунок температуры)
-    else if (step.type === 'heat') {
-        if (window.heatTimeout) { clearTimeout(window.heatTimeout); window.heatTimeout = null; }
+
+    // МЕХАНИКА 4: Наполнение мензурки (Игра "Бармен")
+    else if (step.type === 'pour') {
+        currentLiquidLevel = 0;
         zone.innerHTML = `
-            <div class="cauldron-wrapper">
-                <div class="cauldron-liquid" id="liquid-element"></div>
-                <svg style="position:absolute; width:70px; height:70px;" viewBox="0 0 100 100">
-                    <circle cx="30" cy="40" r="6" fill="#fff" opacity="0.3"/>
-                    <circle cx="70" cy="50" r="4" fill="#fff" opacity="0.4"/>
-                    <circle cx="50" cy="65" r="8" fill="#fff" opacity="0.2"/>
-                </svg>
-            </div>
-            <div class="slider-container">
-                <label>Регулировка огня под котлом:</label>
-                <input type="range" min="0" max="100" value="10" class="fire-slider" oninput="checkHeat(this.value)">
-            </div>
-            <p id="heat-status" style="margin-top:10px;">Разведите огонь под котлом (передвиньте ползунок вправо > 80)</p>`;
+            <div class="pour-container">
+                <div class="beaker">
+                    <div class="beaker-liquid" id="beaker-liquid-fill"></div>
+                    <div class="target-line" style="bottom: ${ (step.target / 400) * 100 }%;"></div>
+                </div>
+                <button class="pour-btn" onmousedown="startPourING()" onmouseup="stopPourING(${step.target})" onmouseleave="stopPourING(${step.target})">НАЛИВАТЬ</button>
+                <div style="margin-top:10px; font-weight:bold;" id="pour-debug">Объём: 0 мл / ${step.target} мл</div>
+            </div>`;
     }
-    
-    // Механика 5: Помешивание (Вращение ложки в котле)
+
+    // МЕХАНИКА 5: Удержание баланса температуры пробелом (Рыбалка в Геншине)
+    else if (step.type === 'balance') {
+        balanceProgress = 0;
+        pointerPos = 20;
+        pointerVelocity = 0;
+        zone.innerHTML = `
+            <div class="fishing-bar">
+                <div class="target-zone" style="left: ${step.minZone}%; width: ${step.maxZone - step.minZone}%;"></div>
+                <div class="pointer" id="balance-pointer" style="left: ${pointerPos}%;"></div>
+            </div>
+            <div class="progress-bar-container" style="width:80%; margin-top:15px; height:10px;">
+                <div class="progress-fill" id="balance-progress-fill" style="width:0%; background:#4caf50;"></div>
+            </div>
+            <p style="font-size:0.85rem; color:#795548; font-style:italic; margin-top:5px;">Зажмите [ПРОБЕЛ] для подъёма индикатора, отпустите для спуска</p>`;
+        initBalanceLoop(step.minZone, step.maxZone, step.duration);
+    }
+
+    // МЕХАНИКА 6: Круговое перемешивание ложкой
     else if (step.type === 'stir') {
-        stirRotationCount = 0;
+        totalStirRotations = 0;
+        currentStirAngle = 0;
+        lastStirAngle = null;
         zone.innerHTML = `
-            <div class="cauldron-wrapper" onclick="triggerStir(${step.target})">
-                <div class="cauldron-liquid" style="background:#a98467;"></div>
-                <svg style="position:absolute; width:100%; height:100%;" viewBox="0 0 140 140">
-                    <g id="svg-spoon" style="transform-origin: 70px 70px; transition: transform 0.2s;">
-                        <line x1="70" y1="70" x2="110" y2="30" stroke="#5c4033" stroke-width="5" stroke-linecap="round"/>
-                        <circle cx="70" cy="70" r="10" fill="none" stroke="#5c4033" stroke-width="3"/>
-                    </g>
-                </svg>
-            </div>
-            <p id="stir-counter" style="margin-top:15px; font-weight:bold;">Круговых движений ложкой: 0 / ${step.target}</p>`;
-    }
-    
-    // Механика 6: Песочные часы (Автоматический таймер ожидания)
-    else if (step.type === 'timer') {
-        let timeLeft = step.duration;
-        zone.innerHTML = `
-            <div style="text-align:center;">
-                <svg width="80" height="110" viewBox="0 0 60 90">
-                    <path d="M10,10 L50,10 L45,40 L15,40 Z" fill="#fffdf9" stroke="#5c4033" stroke-width="2"/>
-                    <path d="M15,50 L45,50 L50,80 L10,80 Z" fill="#fffdf9" stroke="#5c4033" stroke-width="2"/>
-                    <rect x="5" y="5" width="50" height="8" rx="2" fill="#b58263"/>
-                    <rect x="5" y="77" width="50" height="8" rx="2" fill="#b58263"/>
-                    <polygon points="18,15 42,15 33,38 27,38" fill="#e6ccb2"/>
-                    <polygon points="28,52 32,52 45,75 15,75" fill="#e6ccb2"/>
-                    <line x1="30" y1="40" x2="30" y2="52" stroke="#e6ccb2" stroke-width="2" stroke-dasharray="3,3"/>
-                </svg>
-                <h3 id="timer-display" style="margin-top:15px; font-family:'Lora', serif;">Настаивание: ${timeLeft} сек.</h3>
+            <div class="stir-zone" onmousedown="initStirTrack(event)" onmousemove="trackStir(event, ${step.target})">
+                <div class="cauldron-liquid" style="width:140px; height:140px; background:#8d6e63; position:relative; border-radius:50%;">
+                    <div id="spoon-handle" style="position:absolute; width:6px; height:60px; background:#5d4037; top:10px; left:67px; transform-origin: 3px 60px;"></div>
+                </div>
+                <div style="font-weight:bold; margin-top:15px;" id="stir-info">Обороты ложки: 0 / ${step.target}</div>
             </div>`;
-            
-        const interval = setInterval(() => {
-            timeLeft--;
-            if (document.getElementById('timer-display')) {
-                document.getElementById('timer-display').innerText = `Настаивание: ${timeLeft} сек.`;
-            }
-            if (timeLeft <= 0) {
-                clearInterval(interval);
-                completeCurrentStep();
-            }
-        }, 1000);
     }
 }
 
-function triggerCut(target) {
-    cutCount++;
-    const knife = document.getElementById('svg-knife');
-    if (knife) {
-        knife.style.transform = "rotate(-25deg)";
-        setTimeout(() => knife.style.transform = "rotate(0deg)", 70);
-    }
-    document.getElementById('cut-counter').innerText = `Нарезано: ${cutCount} / ${target}`;
-    if (cutCount >= target) setTimeout(completeCurrentStep, 250);
-}
-
-function triggerGrind(target) {
-    grindCount += 10;
-    if (grindCount > 100) grindCount = 100;
-    const pestle = document.getElementById('svg-pestle');
-    const pile = document.getElementById('grind-pile');
-    if (pestle) pestle.style.transform = `rotate(${grindCount * 3.6}deg)`;
-    if (pile) pile.style.opacity = 0.3 + (grindCount / 150);
-    document.getElementById('grind-counter').innerText = `Перетёрто: ${grindCount}%`;
-    if (grindCount >= target) setTimeout(completeCurrentStep, 250);
-}
-
-function triggerStir(target) {
-    stirRotationCount++;
-    const spoon = document.getElementById('svg-spoon');
-    if (spoon) spoon.style.transform = `rotate(${stirRotationCount * 60}deg)`;
-    document.getElementById('stir-counter').innerText = `Круговых движений ложкой: ${stirRotationCount} / ${target}`;
-    if (stirRotationCount >= target) setTimeout(completeCurrentStep, 250);
-}
-
-function checkHeat(val) {
-    const liquid = document.getElementById('liquid-element');
-    const status = document.getElementById('heat-status');
-    if (val > 80) {
-        if (liquid) {
-            liquid.style.background = '#d96b43'; 
-            liquid.style.boxShadow = 'inset 0 0 20px rgba(0,0,0,0.3), 0 0 20px rgba(217, 107, 67, 0.6)';
-        }
-        if (status) status.innerText = 'Жидкость закипает... Поддерживайте огонь!';
-        
-        if (!window.heatTimeout) {
-            window.heatTimeout = setTimeout(() => {
-                window.heatTimeout = null;
-                completeCurrentStep();
-            }, 3000);
-        }
+function selectCauldron(name) {
+    if (myPotion && myPotion.requiredCauldron === name) {
+        completeCurrentStep();
     } else {
-        if (window.heatTimeout) { clearTimeout(window.heatTimeout); window.heatTimeout = null; }
-        if (liquid) { liquid.style.background = '#ccd5ae'; liquid.style.boxShadow = 'inset 0 0 15px rgba(0,0,0,0.15)'; }
-        if (status) status.innerText = 'Огонь слишком слабый! Передвиньте ползунок вправо.';
+        alert("Неверный тип котла! Зелье будет испорчено. Сверьтесь со справочником.");
     }
 }
+
+function handleSlice(e, target) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const svg = document.getElementById('board-svg');
+    
+    slicePoints.push(x);
+    
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", x); line.setAttribute("y1", "20");
+    line.setAttribute("x2", x); line.setAttribute("y2", "160");
+    line.setAttribute("stroke", "#3e2723"); line.setAttribute("stroke-width", "3");
+    svg.appendChild(line);
+
+    document.getElementById('slice-counter').innerText = `Нарезов: ${slicePoints.length} / ${target}`;
+    if (slicePoints.length >= target) setTimeout(completeCurrentStep, 300);
+}
+
+function handleGrind(e, canGrind, target) {
+    if (!canGrind) return;
+    grindCount += 0.5;
+    const node = document.getElementById('pestle-node');
+    if (node) {
+        node.setAttribute("cx", 50 + Math.sin(grindCount) * 15);
+        node.setAttribute("cy", 50 + Math.cos(grindCount) * 15);
+    }
+    const pct = Math.min(Math.round((grindCount / target) * 100), 100);
+    document.getElementById('grind-progress').innerText = `Растирание: ${pct}%`;
+    if (pct >= 100) { canGrind = false; setTimeout(completeCurrentStep, 300); }
+}
+
+function startPourING() {
+    pourInterval = setInterval(() => {
+        if (currentLiquidLevel < 400) {
+            currentLiquidLevel += 3;
+            document.getElementById('beaker-liquid-fill').style.height = `${(currentLiquidLevel / 400) * 100}%`;
+            document.getElementById('pour-debug').innerText = `Объём: ${currentLiquidLevel} мл`;
+        }
+    }, 30);
+}
+
+function stopPourING(target) {
+    clearInterval(pourInterval);
+    if (Math.abs(currentLiquidLevel - target) <= 15) {
+        completeCurrentStep();
+    } else {
+        alert(`Ошибка дозировки! Вы налили ${currentLiquidLevel} мл вместо ${target} мл. Попробуйте аккуратнее.`);
+        currentLiquidLevel = 0;
+        document.getElementById('beaker-liquid-fill').style.height = `0%`;
+        document.getElementById('pour-debug').innerText = `Объём: 0 мл / ${target} мл`;
+    }
+}
+
+function initBalanceLoop(min, max, duration) {
+    const totalFrames = duration * 60;
+    let successFrames = 0;
+
+    function update() {
+        if (isSpacePressed) { pointerVelocity += 0.4; } else { pointerVelocity -= 0.3; }
+        pointerVelocity *= 0.95;
+        pointerPos += pointerVelocity;
+
+        if (pointerPos < 0) { pointerPos = 0; pointerVelocity = 0; }
+        if (pointerPos > 100) { pointerPos = 100; pointerVelocity = 0; }
+
+        const ptr = document.getElementById('balance-pointer');
+        if (ptr) ptr.style.left = `${pointerPos}%`;
+
+        if (pointerPos >= min && pointerPos <= max) {
+            successFrames++;
+        } else {
+            if (successFrames > 0) successFrames -= 0.5;
+        }
+
+        const pct = Math.min((successFrames / totalFrames) * 100, 100);
+        const fill = document.getElementById('balance-progress-fill');
+        if (fill) fill.style.width = `${pct}%`;
+
+        if (pct >= 100) {
+            completeCurrentStep();
+        } else {
+            balanceLoopId = requestAnimationFrame(update);
+        }
+    }
+    balanceLoopId = requestAnimationFrame(update);
+}
+
+function initStirTrack(e) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    lastStirAngle = Math.atan2(e.clientY - cy, e.clientX - cx);
+}
+
+function trackStir(e, target) {
+    if (lastStirAngle === null) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const currentAngle = Math.atan2(e.clientY - cy, e.clientX - cx);
+
+    let delta = currentAngle - lastStirAngle;
+    if (delta > Math.PI) delta -= 2 * Math.PI;
+    if (delta < -Math.PI) delta += 2 * Math.PI;
+
+    if (delta > 0) {
+        currentStirAngle += delta;
+        document.getElementById('spoon-handle').style.transform = `rotate(${currentStirAngle * (180 / Math.PI)}deg)`;
+        
+        const rotations = Math.floor(currentStirAngle / (2 * Math.PI));
+        if (rotations > totalStirRotations) {
+            totalStirRotations = rotations;
+            document.getElementById('stir-info').innerText = `Обороты ложки: ${totalStirRotations} / ${target}`;
+            if (totalStirRotations >= target) {
+                lastStirAngle = null;
+                setTimeout(completeCurrentStep, 300);
+            }
+        }
+    }
+    lastStirAngle = currentAngle;
+}
+
+window.addEventListener('mouseup', () => lastStirAngle = null);
 
 function completeCurrentStep() {
     currentStepIdx++;
@@ -270,8 +328,8 @@ function completeCurrentStep() {
     if (currentStepIdx < myPotion.steps.length) {
         loadStep();
     } else {
-        document.getElementById('step-instruction').innerText = "Ожидайте завершения варки соперником...";
-        document.getElementById('mechanic-zone').innerHTML = "<h3>Ваше зелье успешно сварено! 🧪✨</h3>";
+        document.getElementById('step-instruction').innerText = "Ожидание оппонента...";
+        document.getElementById('mechanic-zone').innerHTML = "<div class='success-banner'>🧪 Концентрация завершена. Зелье стабильно!</div>";
     }
 }
 
@@ -285,5 +343,5 @@ socket.on('roomUpdate', (room) => {
 socket.on('gameOver', ({ winner }) => {
     document.getElementById('duel-status-title').innerText = "Дуэль Завершена!";
     document.getElementById('step-instruction').innerText = `Победитель: ${winner}`;
-    document.getElementById('mechanic-zone').innerHTML = `<button onclick="window.location.reload()">Вернуться в главное меню</button>`;
+    document.getElementById('mechanic-zone').innerHTML = `<button onclick="window.location.reload()" style="max-width:250px;">В главное меню</button>`;
 });
