@@ -1,293 +1,314 @@
-const socket = io();
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,400&family=Lora:ital,wght@0,400;0,600;1,400&display=swap');
 
-let currentAction = 'create';
-let selectedFaculty = '';
-let myRoomId = '';
-let myRole = '';
-let myPotion = null;
-let currentStepIdx = 0;
-
-// Игровые счетчики
-let grindCount = 0;
-let cutCount = 0;
-let stirRotationCount = 0;
-
-function navigate(action) {
-    currentAction = action;
-    document.getElementById('screen-main').classList.remove('active');
-    document.getElementById('screen-profile').classList.add('active');
-    if (action === 'create') {
-        document.getElementById('profile-title').innerText = 'Создание комнаты';
-        document.getElementById('room-code-input-group').style.display = 'none';
-    } else {
-        document.getElementById('profile-title').innerText = 'Присоединение к комнате';
-        document.getElementById('room-code-input-group').style.display = 'block';
-    }
+/* Основные настройки пространства */
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #ede0d4; /* Мягкий базовый фон вокруг карточки */
+    background-image: radial-gradient(rgba(189, 159, 137, 0.15) 1px, transparent 0);
+    background-size: 24px 24px;
+    color: #4e342e; /* Глубокий кофейный вместо черного */
+    font-family: 'Lora', Georgia, serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
 }
 
-function goBack() {
-    document.getElementById('screen-profile').classList.remove('active');
-    document.getElementById('screen-main').classList.add('active');
+/* Экраны в виде винтажных листов пергамента */
+.screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    width: 95%;
+    max-width: 800px;
+    padding: 40px;
+    background: #f7f1e5; /* Цвет дорогой матовой бумаги */
+    border: 1px solid #d6c5b3;
+    border-radius: 24px; /* Закругления */
+    box-shadow: 
+        0 10px 30px rgba(141, 110, 99, 0.15),
+        inset 0 0 40px rgba(213, 191, 172, 0.2);
+    box-sizing: border-box;
+    position: relative;
 }
 
-function selectFaculty(fac) {
-    selectedFaculty = fac;
-    document.querySelectorAll('.fac-btn').forEach(btn => btn.classList.remove('selected'));
-    event.target.classList.add('selected');
+/* Изящная двойная декоративная рамка внутри экрана */
+.screen::before {
+    content: "";
+    position: absolute;
+    top: 12px; left: 12px; right: 12px; bottom: 12px;
+    border: 1px dashed #cdc0b0;
+    border-radius: 16px;
+    pointer-events: none;
 }
 
-function submitProfile() {
-    const name = document.getElementById('username').value.trim();
-    if (!name || !selectedFaculty) return alert('Заполните имя и выберите факультет!');
-    if (currentAction === 'create') {
-        socket.emit('createRoom', { name, faculty: selectedFaculty });
-    } else {
-        const code = document.getElementById('room-code').value.trim();
-        socket.emit('checkRoom', code);
-    }
+.screen.active {
+    display: flex;
 }
 
-socket.on('roomCreated', (roomId) => { myRoomId = roomId; showRoleScreen(); });
-socket.on('roomExists', (exists) => {
-    if (exists) {
-        myRoomId = document.getElementById('room-code').value.trim();
-        showRoleScreen();
-    } else { alert('Комната не найдена!'); }
-});
-
-function showRoleScreen() {
-    document.getElementById('screen-profile').classList.remove('active');
-    document.getElementById('screen-role').classList.add('active');
-    document.getElementById('display-room-code').innerText = myRoomId;
+/* Элегантные заголовки */
+.magic-title, h2 {
+    font-family: 'Playfair Display', 'Times New Roman', serif;
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: #5c4033;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+    text-align: center;
 }
 
-function chooseRole(role) {
-    myRole = role;
-    const name = document.getElementById('username').value.trim();
-    socket.emit('joinRole', { roomId: myRoomId, name, faculty: selectedFaculty, role });
-    document.getElementById('player-role-btn').disabled = true;
+h2 { font-size: 1.8rem; margin-top: 10px; }
+
+p {
+    color: #795548;
+    font-style: italic;
+    margin-bottom: 30px;
 }
 
-socket.on('gameStart', ({ players }) => {
-    document.getElementById('screen-role').classList.remove('active');
-    document.getElementById('screen-duel').classList.add('active');
-    
-    const me = players.find(p => p.id === socket.id);
-    const enemy = players.find(p => p.id !== socket.id);
-
-    if (me) document.getElementById('my-stat-name').innerText = `${me.name} (${me.faculty})`;
-    if (enemy) document.getElementById('enemy-stat-name').innerText = `${enemy.name} (${enemy.faculty})`;
-});
-
-socket.on('yourPotionData', (potionData) => {
-    myPotion = potionData;
-    currentStepIdx = 0;
-    document.getElementById('my-potion-title').innerText = `Приготовление: ${myPotion.name}`;
-    loadStep();
-});
-
-// Загрузка шага с отрисовкой векторных объектов
-function loadStep() {
-    if (!myPotion || currentStepIdx >= myPotion.steps.length) return;
-    
-    const step = myPotion.steps[currentStepIdx];
-    document.getElementById('step-instruction').innerText = step.text;
-    const zone = document.getElementById('mechanic-zone');
-    zone.innerHTML = ''; 
-
-    // 1. МЕХАНИКА: Добавление ингредиента (Флакон / Ингредиент)
-    if (step.type === 'click') {
-        zone.innerHTML = `
-            <div style="cursor:pointer; text-align:center;" onclick="completeCurrentStep()">
-                <svg width="120" height="150" viewBox="0 0 100 120">
-                    <path d="M40,20 L60,20 L60,35 L75,50 A25,25 0 0,1 75,90 L25,90 A25,25 0 0,1 25,50 L40,35 Z" fill="#b58263" stroke="#5c4033" stroke-width="3"/>
-                    <rect x="35" y="10" width="30" height="10" rx="3" fill="#8b5e3c" stroke="#5c4033" stroke-width="2"/>
-                    <circle cx="50" cy="70" r="15" fill="#e6ccb2" opacity="0.6"/>
-                    <path d="M30,75 Q50,60 70,75 L70,85 L30,85 Z" fill="#a98467"/>
-                </svg>
-                <p class="gold-text" style="margin-top:10px;">Нажмите на склянку, чтобы влить её содержание</p>
-            </div>`;
-    } 
-    
-    // 2. МЕХАНИКА: Нарезка ножом (Ингредиент и анимированный нож)
-    else if (step.type === 'cut') {
-        cutCount = 0;
-        zone.innerHTML = `
-            <div style="text-align:center; position:relative; width:200px; height:200px; cursor:pointer;" onclick="triggerCut(${step.target})">
-                <svg width="200" height="200" viewBox="0 0 200 200">
-                    <ellipse cx="100" cy="130" rx="80" ry="30" fill="#ddbca3" stroke="#8b5e3c" stroke-width="3"/>
-                    <path d="M50,120 Q100,105 150,125 Q130,140 60,135 Z" fill="#7f5539" id="root-ingredient"/>
-                    <g id="svg-knife" style="transform-origin: 140px 110px; transition: transform 0.1s;">
-                        <path d="M60,100 L140,110 L135,118 L70,115 Z" fill="#d6c5b3" stroke="#5c4033" stroke-width="2"/>
-                        <rect x="140" y="105" width="35" height="10" rx="3" fill="#5c4033"/>
-                    </g>
-                </svg>
-                <div style="font-weight:bold; margin-top:-20px;" id="cut-counter">Нарезано: 0 / ${step.target}</div>
-            </div>`;
-    } 
-    
-    // 3. МЕХАНИКА: Ступка и пестик (Перетирание порошка)
-    else if (step.type === 'grind') {
-        grindCount = 0;
-        zone.innerHTML = `
-            <div style="text-align:center; width:200px; height:200px; cursor:pointer;" onclick="triggerGrind(${step.target})">
-                <svg width="180" height="160" viewBox="0 0 100 90">
-                    <path d="M10,30 L90,30 C90,70 10,70 10,30 Z" fill="#fffdf9" stroke="#b58263" stroke-width="3"/>
-                    <ellipse cx="50" cy="30" rx="40" ry="10" fill="#e6ccb2" stroke="#b58263" stroke-width="2"/>
-                    <ellipse cx="50" cy="40" rx="25" ry="8" fill="#7f5539" opacity="0.3" id="grind-pile"/>
-                    <g id="svg-pestle" style="transform-origin: 50px 30px; transition: transform 0.1s;">
-                        <path d="M44,10 L56,10 L52,40 L48,40 Z" fill="#8b5e3c" stroke="#5c4033" stroke-width="2"/>
-                        <circle cx="50" cy="42" r="6" fill="#5c4033"/>
-                    </g>
-                </svg>
-                <div style="font-weight:bold; margin-top:10px;" id="grind-counter">Перетёрто: 0%</div>
-            </div>`;
-    }
-    
-    // 4. МЕХАНИКА: Котел и Нагрев (Огонь и бурление)
-    else if (step.type === 'heat') {
-        zone.innerHTML = `
-            <div class="cauldron-wrapper">
-                <div class="cauldron-liquid" id="liquid-element"></div>
-                <svg style="position:absolute; width:70px; height:70px;" viewBox="0 0 100 100">
-                    <circle cx="30" cy="40" r="6" fill="#fff" opacity="0.3" class="bubble"/>
-                    <circle cx="70" cy="50" r="4" fill="#fff" opacity="0.4" class="bubble"/>
-                    <circle cx="50" cy="65" r="8" fill="#fff" opacity="0.2" class="bubble"/>
-                </svg>
-            </div>
-            <div class="slider-container">
-                <label>Регулировка тепла под котлом:</label>
-                <input type="range" min="0" max="100" value="10" class="fire-slider" oninput="checkHeat(this.value)">
-            </div>
-            <p id="heat-status" style="margin-top:10px;">Разведите огонь (переместите рычаг вправо)</p>`;
-    }
-    
-    // 5. МЕХАНИКА: Помешивание (Ложка в котле)
-    else if (step.type === 'stir') {
-        stirRotationCount = 0;
-        zone.innerHTML = `
-            <div class="cauldron-wrapper" onclick="triggerStir(${step.target})">
-                <div class="cauldron-liquid" style="background:#a98467;"></div>
-                <svg style="position:absolute; width:100%; height:100%;" viewBox="0 0 140 140">
-                    <g id="svg-spoon" style="transform-origin: 70px 70px; transition: transform 0.2s;">
-                        <line x1="70" y1="70" x2="110" y2="30" stroke="#5c4033" stroke-width="5" stroke-linecap="round"/>
-                        <circle cx="70" cy="70" r="10" fill="none" stroke="#5c4033" stroke-width="3"/>
-                    </g>
-                </svg>
-            </div>
-            <p id="stir-counter" style="margin-top:15px; font-weight:bold;">Круговых движений ложкой: 0 / ${step.target}</p>`;
-    }
-    
-    // 6. МЕХАНИКА: Таймер (Песочные часы)
-    else if (step.type === 'timer') {
-        let timeLeft = step.duration;
-        zone.innerHTML = `
-            <div style="text-align:center;">
-                <svg width="80" height="110" viewBox="0 0 60 90">
-                    <path d="M10,10 L50,10 L45,40 L15,40 Z" fill="#fffdf9" stroke="#5c4033" stroke-width="2"/>
-                    <path d="M15,50 L45,50 L50,80 L10,80 Z" fill="#fffdf9" stroke="#5c4033" stroke-width="2"/>
-                    <rect x="5" y="5" width="50" height="8" rx="2" fill="#b58263"/>
-                    <rect x="5" y="77" width="50" height="8" rx="2" fill="#b58263"/>
-                    <polygon points="18,15 42,15 33,38 27,38" fill="#e6ccb2" id="sand-top"/>
-                    <polygon points="28,52 32,52 45,75 15,75" fill="#e6ccb2"/>
-                    <line x1="30" y1="40" x2="30" y2="52" stroke="#e6ccb2" stroke-width="2" stroke-dasharray="3,3"/>
-                </svg>
-                <h3 id="timer-display" style="margin-top:15px; font-family:'Lora', serif;">Настаивание: ${timeLeft} сек.</h3>
-            </div>`;
-            
-        const interval = setInterval(() => {
-            timeLeft--;
-            if (document.getElementById('timer-display')) {
-                document.getElementById('timer-display').innerText = `Настаивание: ${timeLeft} сек.`;
-            }
-            if (timeLeft <= 0) {
-                clearInterval(interval);
-                completeCurrentStep();
-            }
-        }, 1000);
-    }
+/* Кнопки в стиле крафтовых ярлыков */
+button {
+    background: #b58263; /* Теплый терракотово-коричневый */
+    color: #fff9f2;
+    border: 1px solid #9c6644;
+    padding: 14px 28px;
+    font-family: 'Lora', serif;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 30px; /* Круглые аккуратные кнопки */
+    cursor: pointer;
+    margin: 10px 0;
+    transition: all 0.2s ease-in-out;
+    width: 100%;
+    box-shadow: 0 4px 10px rgba(156, 102, 68, 0.15);
 }
 
-// Функции-обработчики с добавлением анимационных эффектов
-function triggerCut(target) {
-    cutCount++;
-    // Анимация удара ножа
-    const knife = document.getElementById('svg-knife');
-    if (knife) {
-        knife.style.transform = "rotate(-25deg)";
-        setTimeout(() => knife.style.transform = "rotate(0deg)", 70);
-    }
-    document.getElementById('cut-counter').innerText = `Нарезано: ${cutCount} / ${target}`;
-    if (cutCount >= target) setTimeout(completeCurrentStep, 200);
+button:hover {
+    background: #7f5539;
+    box-shadow: 0 4px 12px rgba(127, 85, 57, 0.3);
+    transform: translateY(-1px);
 }
 
-function triggerGrind(target) {
-    grindCount += 8;
-    if (grindCount > 100) grindCount = 100;
-    // Анимация вращения пестика
-    const pestle = document.getElementById('svg-pestle');
-    const pile = document.getElementById('grind-pile');
-    if (pestle) {
-        pestle.style.transform = `rotate(${grindCount * 3.6}deg)`;
-    }
-    if (pile) {
-        pile.style.opacity = 0.3 + (grindCount / 150);
-    }
-    document.getElementById('grind-counter').innerText = `Перетёрто: ${grindCount}%`;
-    if (grindCount >= target) setTimeout(completeCurrentStep, 200);
+/* Мягкая акцентная кнопка (Карамельный / Оливковый тон) */
+.orange-btn {
+    background: #a98467;
+    border-color: #8b5e3c;
+}
+.orange-btn:hover {
+    background: #606c38; /* Оливковый акцент при наведении */
+    border-color: #283618;
 }
 
-function triggerStir(target) {
-    stirRotationCount++;
-    // Анимация движения ложки по окружности котла
-    const spoon = document.getElementById('svg-spoon');
-    if (spoon) {
-        spoon.style.transform = `rotate(${stirRotationCount * 45}deg)`;
-    }
-    document.getElementById('stir-counter').innerText = `Круговых движений ложкой: ${stirRotationCount} / ${target}`;
-    if (stirRotationCount >= target) setTimeout(completeCurrentStep, 200);
+/* Текстовые поля (Инпуты) */
+input[type="text"] {
+    width: 100%;
+    padding: 14px 20px;
+    margin-bottom: 25px;
+    background: #fffdf9;
+    border: 1px solid #d6c5b3;
+    color: #4e342e;
+    font-family: inherit;
+    border-radius: 30px;
+    font-size: 1rem;
+    box-sizing: border-box;
+    box-shadow: inset 0 2px 4px rgba(141, 110, 99, 0.05);
+    transition: all 0.3s;
 }
 
-function checkHeat(val) {
-    const liquid = document.getElementById('liquid-element');
-    const status = document.getElementById('heat-status');
-    if (val > 80) {
-        if (liquid) {
-            liquid.style.background = '#d96b43'; // Цвет закипающего варева
-            liquid.style.boxShadow = 'inset 0 0 20px rgba(0,0,0,0.3), 0 0 20px rgba(217, 107, 67, 0.6)';
-        }
-        if (status) status.innerText = 'Жидкость закипает... Поддерживайте огонь!';
-        
-        if (!window.heatTimeout) {
-            window.heatTimeout = setTimeout(() => {
-                window.heatTimeout = null;
-                completeCurrentStep();
-            }, 3000);
-        }
-    }
+input[type="text"]:focus {
+    border-color: #b58263;
+    outline: none;
+    background: #ffffff;
 }
 
-function completeCurrentStep() {
-    currentStepIdx++;
-    socket.emit('nextStepReady', { roomId: myRoomId });
-    if (currentStepIdx < myPotion.steps.length) {
-        loadStep();
-    } else {
-        document.getElementById('step-instruction').innerText = "Ожидайте завершения варки соперником...";
-        document.getElementById('mechanic-zone').innerHTML = "<h3>Ваше зелье успешно сварено! 🧪✨</h3>";
-    }
+/* Переключатели Факультетов в виде аккуратных карточек */
+.faculty-selector {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin: 20px 0 30px 0;
+    width: 100%;
 }
 
-socket.on('roomUpdate', (room) => {
-    const me = room.players.find(p => p.id === socket.id);
-    const enemy = room.players.find(p => p.id !== socket.id);
+.fac-btn {
+    background: #fffdf9;
+    border: 1px solid #e6ccb2;
+    padding: 15px 5px;
+    border-radius: 14px;
+    color: #7f5539;
+    font-size: 0.9rem;
+    box-shadow: none;
+}
 
-    if (me) document.getElementById('my-progress-bar').style.width = `${me.progress}%`;
-    if (enemy) document.getElementById('enemy-progress-bar').style.width = `${enemy.progress}%`;
-});
+.fac-btn:hover {
+    background: #f5ebe0;
+    border-color: #b58263;
+}
 
-socket.on('gameOver', ({ winner }) => {
-    document.getElementById('duel-status-title').innerText = "Дуэль Завершена!";
-    document.getElementById('step-instruction').innerText = `Победитель: ${winner}`;
-    document.getElementById('mechanic-zone').innerHTML = `<button onclick="window.location.reload()">Вернуться в главное меню</button>`;
-});
+.fac-btn.selected {
+    background: #e6ccb2;
+    border: 1.5px solid #7f5539;
+    color: #4e342e;
+    font-weight: bold;
+}
+
+/* --- ИГРОВОЙ ИНТЕРФЕЙС (ЛАБОРАТОРИЯ) --- */
+.duel-layout {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 30px;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.workspace {
+    background: #fffdf9;
+    border: 1px solid #e6ccb2;
+    padding: 30px;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: inset 0 0 20px rgba(230, 204, 178, 0.1);
+}
+
+.recipe-box {
+    font-family: 'Lora', serif;
+    font-style: italic;
+    font-size: 1.05rem;
+    line-height: 1.6;
+    background: #fcf8f2;
+    padding: 20px;
+    border-left: 3px solid #b58263;
+    border-radius: 4px;
+    margin-bottom: 25px;
+    width: 100%;
+    box-sizing: border-box;
+    color: #5c4033;
+}
+
+/* Зона интерактива */
+.interactive-zone {
+    width: 100%;
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 10px 0;
+}
+
+/* Медный / Чугунный котел */
+.cauldron-wrapper {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    background: #8b5e3c; /* Теплый медный цвет */
+    border-radius: 50% 50% 45% 45%;
+    border: 6px solid #6c472b;
+    box-shadow: 
+        0 12px 20px rgba(108, 71, 43, 0.2), 
+        inset 0 4px 10px rgba(0,0,0,0.3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Волшебная жидкость */
+.cauldron-liquid {
+    width: 80%;
+    height: 80%;
+    border-radius: 50%;
+    background: #ccd5ae; /* Пастельный травяной оттенок */
+    box-shadow: inset 0 0 15px rgba(0,0,0,0.15);
+    transition: background 0.8s ease;
+}
+
+/* Ползунок тепла */
+.slider-container {
+    width: 90%;
+    margin-top: 25px;
+    text-align: left;
+}
+
+.slider-container label {
+    font-size: 0.9rem;
+    color: #795548;
+}
+
+.fire-slider {
+    width: 100%;
+    margin-top: 12px;
+    background: #e6ccb2;
+    accent-color: #b58263; 
+    height: 4px;
+    border-radius: 2px;
+    outline: none;
+}
+
+/* Доска для нарезки / Ступка */
+.action-pad {
+    width: 190px;
+    height: 190px;
+    background: #fffdf9;
+    border: 1px dashed #b58263;
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 600;
+    color: #7f5539;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+    transition: transform 0.2s, background 0.2s;
+}
+.action-pad:hover {
+    background: #fbf6f0;
+    transform: scale(1.02);
+}
+
+/* Сайдбар прогресса */
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.status-block {
+    background: #fffdf9;
+    border: 1px solid #e6ccb2;
+    padding: 20px;
+    border-radius: 16px;
+    text-align: left;
+}
+
+.status-block h4 {
+    margin: 0 0 8px 0;
+    color: #5c4033;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+}
+
+.progress-bar-container {
+    width: 100%;
+    background: #f5ebe0;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #b58263; 
+    width: 0%;
+    transition: width 0.4s ease;
+}
+
+.gold-text { 
+    color: #b58263; 
+    font-weight: bold; 
+}
