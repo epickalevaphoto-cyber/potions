@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Выбор роли - Дуэль зельеваров</title>
     <link rel="stylesheet" href="style.css">
+    <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
     <div class="container">
@@ -71,6 +72,15 @@
         let selectedRole = null;
         let playerName = '';
         let playerHouse = 'Гриффиндор';
+        let socket = null;
+        
+        // Подключаем Socket.IO
+        try {
+            socket = io();
+            console.log('Socket.IO подключен в choose-role');
+        } catch (e) {
+            console.error('Ошибка подключения Socket.IO:', e);
+        }
         
         function showError(message) {
             const errorEl = document.getElementById('error');
@@ -112,24 +122,39 @@
                 role: role
             };
             
-            fetch('/join-room', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
+            // Сначала присоединяемся через Socket.IO
+            if (socket) {
+                socket.emit('joinRoom', data);
+                
+                socket.on('joined', (response) => {
+                    console.log('Присоединение подтверждено:', response);
                     window.location.href = `/game.html?room=${roomId}`;
-                } else {
-                    showError(data.message || 'Не удалось присоединиться');
-                }
-            })
-            .catch(() => {
-                showError('Ошибка соединения с сервером');
-            });
+                });
+                
+                socket.on('error', (message) => {
+                    showError(message);
+                });
+            } else {
+                // Fallback: используем HTTP запрос
+                fetch('/join-room', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = `/game.html?room=${roomId}`;
+                    } else {
+                        showError(data.message || 'Не удалось присоединиться');
+                    }
+                })
+                .catch(() => {
+                    showError('Ошибка соединения с сервером');
+                });
+            }
         }
         
         // Получение информации о комнате
@@ -163,6 +188,13 @@
         
         updateRoomInfo();
         setInterval(updateRoomInfo, 3000);
+        
+        // Обработка Enter для имени
+        document.getElementById('playerName').addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('playerRoleBtn').click();
+            }
+        });
     </script>
 </body>
 </html>
