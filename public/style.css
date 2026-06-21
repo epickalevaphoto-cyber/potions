@@ -1,82 +1,312 @@
+/* Подключаем изящный винтажный шрифт для заголовков */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,400&family=Lora:ital,wght@0,400;0,600;1,400&display=swap');
+
 body {
     margin: 0;
     padding: 0;
-    background-color: #F4EBE1;
-    color: #3E2723;
-    font-family: 'Georgia', serif;
+    background-color: #ede0d4; /* Мягкий базовый фон вокруг карточки */
+    background-image: radial-gradient(rgba(189, 159, 137, 0.15) 1px, transparent 0);
+    background-size: 24px 24px;
+    color: #4e342e; /* Глубокий кофейный вместо черного */
+    font-family: 'Lora', Georgia, serif;
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
 }
 
+/* Экраны в виде винтажных листов пергамента */
 .screen {
     display: none;
     flex-direction: column;
     align-items: center;
-    text-align: center;
-    width: 90%;
-    max-width: 500px;
-    padding: 30px;
-    border: 2px solid #3E2723;
-    background: #EADCC9;
-    box-shadow: 0px 4px 15px rgba(0,0,0,0.1);
-    border-radius: 4px;
+    width: 95%;
+    max-width: 800px;
+    padding: 40px;
+    background: #f7f1e5; /* Цвет дорогой матовой бумаги */
+    border: 1px solid #d6c5b3;
+    border-radius: 24px; /* Закругления как на твоих примерах */
+    box-shadow: 
+        0 10px 30px rgba(141, 110, 99, 0.15),
+        inset 0 0 40px rgba(213, 191, 172, 0.2);
+    box-sizing: border-box;
+    position: relative;
+}
+
+/* Изящная двойная декоративная рамка внутри экрана */
+.screen::before {
+    content: "";
+    position: absolute;
+    top: 12px; left: 12px; right: 12px; bottom: 12px;
+    border: 1px dashed #cdc0b0;
+    border-radius: 16px;
+    pointer-events: none;
 }
 
 .screen.active {
     display: flex;
 }
 
-.magic-title {
-    font-size: 2.5rem;
-    margin-bottom: 40px;
-    letter-spacing: 2px;
+/* Элегантные заголовки */
+.magic-title, h2 {
+    font-family: 'Playfair Display', 'Times New Roman', serif;
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: #5c4033;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+    text-align: center;
 }
 
+h2 { font-size: 1.8rem; margin-top: 10px; }
+
+p {
+    color: #795548;
+    font-style: italic;
+    margin-bottom: 30px;
+}
+
+/* Кнопки в стиле крафтовых ярлыков */
 button {
-    background-color: #8D6E63;
-    color: #F4EBE1;
-    border: 1px solid #3E2723;
-    padding: 12px 25px;
-    font-family: 'Georgia', serif;
+    background: #b58263; /* Теплый терракотово-коричневый */
+    color: #fff9f2;
+    border: 1px solid #9c6644;
+    padding: 14px 28px;
+    font-family: 'Lora', serif;
     font-size: 1rem;
+    font-weight: 600;
+    border-radius: 30px; /* Круглые аккуратные кнопки */
     cursor: pointer;
     margin: 10px 0;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease-in-out;
     width: 100%;
+    box-shadow: 0 4px 10px rgba(156, 102, 68, 0.15);
 }
 
 button:hover {
-    background-color: #5D4037;
-    border-color: #D4AF37;
+    background: #7f5539;
+    box-shadow: 0 4px 12px rgba(127, 85, 57, 0.3);
+    transform: translateY(-1px);
 }
 
-input {
+/* Мягкая акцентная кнопка (Карамельный / Оливковый тон) */
+.orange-btn {
+    background: #a98467;
+    border-color: #8b5e3c;
+}
+.orange-btn:hover {
+    background: #606c38; /* Оливковый акцент при наведении, очень в тему стиля */
+    border-color: #283618;
+}
+
+/* Текстовые поля (Инпуты) */
+input[type="text"] {
     width: 100%;
-    padding: 12px;
-    margin-bottom: 20px;
-    background: #F4EBE1;
-    border: 1px solid #3E2723;
-    color: #3E2723;
+    padding: 14px 20px;
+    margin-bottom: 25px;
+    background: #fffdf9;
+    border: 1px solid #d6c5b3;
+    color: #4e342e;
     font-family: inherit;
+    border-radius: 30px;
+    font-size: 1rem;
     box-sizing: border-box;
+    box-shadow: inset 0 2px 4px rgba(141, 110, 99, 0.05);
+    transition: all 0.3s;
 }
 
+input[type="text"]:focus {
+    border-color: #b58263;
+    outline: none;
+    background: #ffffff;
+}
+
+/* Переключатели Факультетов в виде аккуратных карточек */
 .faculty-selector {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-top: 10px;
-    margin-bottom: 20px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin: 20px 0 30px 0;
+    width: 100%;
 }
 
-.faculty-selector button.selected {
-    border: 2px solid #D4AF37;
-    background-color: #5D4037;
+.fac-btn {
+    background: #fffdf9;
+    border: 1px solid #e6ccb2;
+    padding: 15px 5px;
+    border-radius: 14px;
+    color: #7f5539;
+    font-size: 0.9rem;
+    box-shadow: none;
 }
 
-.gold-text {
-    color: #B8860B;
+.fac-btn:hover {
+    background: #f5ebe0;
+    border-color: #b58263;
+}
+
+.fac-btn.selected {
+    background: #ddbdf6; /* Мягкий пастельный оттенок для фокуса */
+    background: #e6ccb2;
+    border: 1.5px solid #7f5539;
+    color: #4e342e;
     font-weight: bold;
 }
+
+/* --- ИГРОВОЙ ИНТЕРФЕЙС (ЛАБОРАТОРИЯ) --- */
+.duel-layout {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 30px;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.workspace {
+    background: #fffdf9;
+    border: 1px solid #e6ccb2;
+    padding: 30px;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: inset 0 0 20px rgba(230, 204, 178, 0.1);
+}
+
+.recipe-box {
+    font-family: 'Lora', serif;
+    font-style: italic;
+    font-size: 1.05rem;
+    line-height: 1.6;
+    background: #fcf8f2;
+    padding: 20px;
+    border-left: 3px solid #b58263;
+    border-radius: 4px;
+    margin-bottom: 25px;
+    width: 100%;
+    box-sizing: border-box;
+    color: #5c4033;
+}
+
+/* Зона интерактива */
+.interactive-zone {
+    width: 100%;
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 10px 0;
+}
+
+/* Медный / Чугунный котел */
+.cauldron-wrapper {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    background: #8b5e3c; /* Теплый медный цвет */
+    border-radius: 50% 50% 45% 45%;
+    border: 6px solid #6c472b;
+    box-shadow: 
+        0 12px 20px rgba(108, 71, 43, 0.2), 
+        inset 0 4px 10px rgba(0,0,0,0.3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Волшебная жидкость */
+.cauldron-liquid {
+    width: 80%;
+    height: 80%;
+    border-radius: 50%;
+    background: #ccd5ae; /* Пастельный травяной оттенок */
+    box-shadow: inset 0 0 15px rgba(0,0,0,0.15);
+    transition: background 0.8s ease;
+}
+
+/* Ползунок тепла */
+.slider-container {
+    width: 90%;
+    margin-top: 25px;
+    text-align: left;
+}
+
+.slider-container label {
+    font-size: 0.9rem;
+    color: #795548;
+}
+
+.fire-slider {
+    width: 100%;
+    margin-top: 12px;
+    background: #e6ccb2;
+    accent-color: #b58263; /* Красивый родной цвет ползунка */
+    height: 4px;
+    border-radius: 2px;
+    outline: none;
+}
+
+/* Доска для нарезки / Ступка */
+.action-pad {
+    width: 190px;
+    height: 190px;
+    background: #fffdf9;
+    border: 1px dashed #b58263;
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 600;
+    color: #7f5539;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+    transition: transform 0.2s, background 0.2s;
+}
+.action-pad:hover {
+    background: #fbf6f0;
+    transform: scale(1.02);
+}
+
+/* Сайдбар прогресса */
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.status-block {
+    background: #fffdf9;
+    border: 1px solid #e6ccb2;
+    padding: 20px;
+    border-radius: 16px;
+    text-align: left;
+}
+
+.status-block h4 {
+    margin: 0 0 8px 0;
+    color: #5c4033;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+}
+
+.progress-bar-container {
+    width: 100%;
+    background: #f5ebe0;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #b58263; /* Мягкое заполнение шкалы прогресса */
+    width: 0%;
+    transition: width 0.4s ease;
+}
+
+.gold-text { color: #b58263; font-weight: bold; }
