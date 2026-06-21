@@ -5,39 +5,45 @@ const io = require('socket.io')(http);
 
 app.use(express.static('public'));
 
-// База данных магических рецептов
 const POTIONS_DATABASE = [
     {
         id: "potion_1",
         name: "Мазь для мётел",
+        requiredCauldron: "Медь",
         steps: [
-            { type: "grind", target: 100, text: "Шаг 1: Поместите ягоды белладонны и аконит в ступку и измельчите пестиком до однородной массы." },
-            { type: "click", target: 1, text: "Шаг 2: Аккуратно переложите получившуюся массу из ступки в чистый варочный котел." },
-            { type: "heat", target: 85, text: "Шаг 3: Разведите огонь под котлом. Доведите состав до высокой температуры, пока мазь не станет ярко-жёлтой." }
+            { type: "inventory", text: "Подберите инвентарь: Медный котёл" },
+            { type: "slice", target: 4, ingredient: "аконит", text: "Нарезка: Нарежьте аконит на 4 равные части" },
+            { type: "grind", target: 100, ingredient: "белладонна", text: "Ступка: Перетрите ягоды белладонны с аконитом в пыль" },
+            { type: "pour", target: 100, mix: { "порошок": 100 }, text: "Миксер: Пересыпьте готовую массу в котёл" },
+            { type: "balance", duration: 8, minZone: 70, maxZone: 90, text: "Варка: Удерживайте пламя в зоне 70-90% в течение 8 секунд" }
         ]
     },
     {
         id: "potion_2",
         name: "Зелье для проявки фотографий",
+        requiredCauldron: "Серебро",
         steps: [
-            { type: "click", target: 1, text: "Шаг 1: Влейте сок пиявки в котел в качестве жидкой основы." },
-            { type: "heat", target: 85, text: "Шаг 2: Нагрейте котел на сильном огне и доведите сок пиявки до активного кипения." },
-            { type: "timer", duration: 5, text: "Шаг 3: Поддерживайте пламя и дайте основе бурно покипеть в течение 5 секунд." },
-            { type: "click", target: 1, text: "Шаг 4: Добавьте в кипящий состав сок мурлокомля." },
-            { type: "timer", duration: 10, text: "Шаг 5: Сбавьте огонь, добавьте выделения бундимуна и дайте зелью настояться 10 секунд до розового цвета." }
+            { type: "inventory", text: "Подберите инвентарь: Серебряный котёл" },
+            { type: "pour", target: 150, mix: { "сок пиявки": 150 }, text: "Основа: Отмерьте ровно 150 мл сока пиявки" },
+            { type: "balance", duration: 10, minZone: 80, maxZone: 95, text: "Кипячение: Доведите до бурного кипения (80-95%) на 10 секунд" },
+            { type: "pour", target: 250, mix: { "сок пиявки": 150, "сок мурлокомля": 100 }, text: "Смешивание: Долейте сок мурлокомля, чтобы общий объём стал 250 мл" },
+            { type: "pour", target: 300, mix: { "сок пиявки": 150, "сок мурлокомля": 100, "слизь бундимуна": 50 }, text: "Финал: Добавьте 50 мл слизи бундимуна. Не перелейте!" },
+            { type: "balance", duration: 6, minZone: 30, maxZone: 50, text: "Настаивание: Остудите котёл и держите тепло в зоне 30-50%" }
         ]
     },
     {
         id: "potion_3",
         name: "Болтушка для молчунов",
+        requiredCauldron: "Чугун",
         steps: [
-            { type: "click", target: 1, text: "Шаг 1: Наполните чистый котел родниковой водой и поставьте на рабочее место." },
-            { type: "heat", target: 85, text: "Шаг 2: Разогрейте котел, чтобы на поверхности воды появились первые пузыри." },
-            { type: "cut", target: 9, text: "Шаг 3: Нарежьте ветви валерианы на разделочной доске (требуется сделать 9 аккуратных надрезов)." },
-            { type: "click", target: 1, text: "Шаг 4: Всыпьте нарезанную валериану в закипающую воду." },
-            { type: "stir", target: 6, text: "Шаг 5: Плавно помешивайте варево ложкой по часовой стрелке (сделайте 6 полных оборотов)." },
-            { type: "grind", target: 100, text: "Шаг 6: Измельчите аконит и бадьян в ступке пестиком в пропорции 1:1, растерев их в мелкую пыль." },
-            { type: "click", target: 1, text: "Шаг 7: Высыпьте получившийся порошок в котел для завершения алхимической реакции." }
+            { type: "inventory", text: "Подберите инвентарь: Чугунный котёл" },
+            { type: "pour", target: 200, mix: { "речная вода": 200 }, text: "Основа: Налейте ровно 200 мл речной воды Леты" },
+            { type: "balance", duration: 5, minZone: 60, maxZone: 80, text: "Подогрев: Держите температуру воды в районе 60-80%" },
+            { type: "slice", target: 6, ingredient: "валериана", text: "Нарезка: Разделите веточку валерианы на 6 долек" },
+            { type: "pour", target: 250, mix: { "речная вода": 200, "валериана": 50 }, text: "Добавление: Всыпьте нарезанную валериану (до отметки 250 мл)" },
+            { type: "stir", target: 8, text: "Перемешивание: Сделайте ложкой 8 идеальных круговых оборотов" },
+            { type: "grind", target: 100, ingredient: "бадьян", text: "Ступка: Разотрите аконит и бадьян 1:1 до состояния пудры" },
+            { type: "pour", target: 300, mix: { "речная вода": 200, "валериана": 50, "пудра": 50 }, text: "Завершение: Всыпьте пудру в котёл (итоговый объём 300 мл)" }
         ]
     }
 ];
@@ -45,61 +51,33 @@ const POTIONS_DATABASE = [
 const rooms = {};
 
 io.on('connection', (socket) => {
-    console.log(`Маг подключился: ${socket.id}`);
-
-    // Создание комнаты
     socket.on('createRoom', ({ name, faculty }) => {
         const roomId = Math.floor(1000 + Math.random() * 9000).toString();
-        rooms[roomId] = {
-            id: roomId,
-            players: [],
-            potion: null,
-            status: 'waiting'
-        };
+        rooms[roomId] = { id: roomId, players: [], potion: null, status: 'waiting' };
         socket.emit('roomCreated', roomId);
     });
 
-    // Проверка существования комнаты
     socket.on('checkRoom', (roomId) => {
-        if (rooms[roomId] && rooms[roomId].status === 'waiting') {
-            socket.emit('roomExists', true);
-        } else {
-            socket.emit('roomExists', false);
-        }
+        socket.emit('roomExists', !!(rooms[roomId] && rooms[roomId].status === 'waiting'));
     });
 
-    // Присоединение к роли дуэлянта
-    socket.on('joinRole', ({ roomId, name, faculty, role }) => {
+    socket.on('joinRole', ({ roomId, name, faculty }) => {
         const room = rooms[roomId];
         if (!room) return;
 
-        // Избегаем дублирования игрока
         if (!room.players.some(p => p.id === socket.id)) {
-            room.players.push({
-                id: socket.id,
-                name: name,
-                faculty: faculty,
-                currentStep: 0,
-                progress: 0
-            });
+            room.players.push({ id: socket.id, name, faculty, currentStep: 0, progress: 0 });
             socket.join(roomId);
         }
 
-        // Если оба дуэлянта на месте — запускаем соревнование
         if (room.players.length === 2 && room.status === 'waiting') {
             room.status = 'playing';
             room.potion = POTIONS_DATABASE[Math.floor(Math.random() * POTIONS_DATABASE.length)];
-
             io.to(roomId).emit('gameStart', { players: room.players });
-            
-            // Рассылаем рецепт зелья индивидуально каждому
-            room.players.forEach(p => {
-                io.to(p.id).emit('yourPotionData', room.potion);
-            });
+            room.players.forEach(p => io.to(p.id).emit('yourPotionData', room.potion));
         }
     });
 
-    // Обработка выполнения шага игроком
     socket.on('nextStepReady', ({ roomId }) => {
         const room = rooms[roomId];
         if (!room || room.status !== 'playing') return;
@@ -111,23 +89,19 @@ io.on('connection', (socket) => {
         const totalSteps = room.potion.steps.length;
         player.progress = Math.min(Math.round((player.currentStep / totalSteps) * 100), 100);
 
-        // Рассылаем обновление прогресса всем участникам комнаты
         io.to(roomId).emit('roomUpdate', room);
 
-        // Проверяем, сварил ли кто-то зелье полностью
         if (player.currentStep >= totalSteps) {
             room.status = 'finished';
             io.to(roomId).emit('gameOver', { winner: `${player.name} (${player.faculty})` });
-            delete rooms[roomId]; // Удаляем комнату после завершения
+            delete rooms[roomId];
         }
     });
 
     socket.on('disconnect', () => {
-        console.log(`Маг отсоединился: ${socket.id}`);
-        // Очистка пустых комнат при выходе игроков
         for (const id in rooms) {
             if (rooms[id].players.some(p => p.id === socket.id)) {
-                io.to(id).emit('gameOver', { winner: "Соперник покинул лабораторию" });
+                io.to(id).emit('gameOver', { winner: "Соперник покинул рабочее место" });
                 delete rooms[id];
             }
         }
@@ -135,6 +109,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => {
-    console.log(`Алхимический сервер запущен на порту ${PORT}`);
-});
+http.listen(PORT, () => console.log(`Server running on port ${PORT}`));
